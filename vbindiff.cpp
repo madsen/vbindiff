@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4609 2005-03-21 22:12:40Z cjm $
+// $Id: vbindiff.cpp 4610 2005-03-22 06:31:17Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -25,9 +25,11 @@
 #include "config.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -735,13 +737,13 @@ void FileDisplay::moveToEnd(FileDisplay* other)
   if (file.fail())
     file.clear();
 
-  streampos  end = file.rdbuf()->pubseekoff(0, ios_base::end);
+  streampos  end = file.rdbuf()->pubseekoff(0, ios::end);
 
   if (other) {
     if (other->file.fail())
       other->file.clear();
 
-    end = min(end, other->file.rdbuf()->pubseekoff(0, ios_base::end));
+    end = min(end, other->file.rdbuf()->pubseekoff(0, ios::end));
   } // end if moving other file too
 
   end -= steps[cmmMovePage];
