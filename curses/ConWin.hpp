@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4615 2005-03-23 19:22:50Z cjm $
+// $Id: ConWin.hpp 4617 2005-03-23 23:04:29Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -53,6 +53,7 @@ class ConWindow
   void putAttribs(short x, short y, Style color, short count);
   void putChar(short x, short y, char c, short count);
   int  readKey();
+  void resize(short width, short height);
   void setAttribs(Style color);
   void setCursor(short x, short y);
   void update() {};

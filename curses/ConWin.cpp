@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4615 2005-03-23 19:22:50Z cjm $
+// $Id: ConWin.cpp 4617 2005-03-23 23:04:29Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -222,6 +222,17 @@ int ConWindow::readKey()
 
   return wgetch(win);
 } // end ConWindow::readKey
+
+//--------------------------------------------------------------------
+void ConWindow::resize(short width, short height)
+{
+  if (wresize(win, height, width) != OK)
+    exitMsg(99, "Internal error: Failed to resize window");
+
+  replace_panel(pan, win);
+
+  clear();
+} // end ConWindow::resize
 
 //--------------------------------------------------------------------
 void ConWindow::setAttribs(Style color)

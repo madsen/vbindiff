@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4616 2005-03-23 20:06:55Z cjm $
+// $Id: vbindiff.cpp 4617 2005-03-23 23:04:29Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -86,6 +86,7 @@ const Command  cmEditBottom   = 9;
 const Command  cmUseTop       = 10;
 const Command  cmUseBottom    = 11;
 const Command  cmToggleASCII  = 12;
+const Command  cmFind         = 16; // Commands 16-19
 
 const short  leftMar  = 11;     // Starting column of hex display
 const short  leftMar2 = 61;     // Starting column of ASCII display
@@ -140,6 +141,7 @@ class FileDisplay
   const Byte*  getBuffer() const { return data->buffer; };
   void         move(int step)    { moveTo(offset + streampos(step)); };
   void         moveTo(streampos newOffset);
+  bool         moveTo(Byte* searchFor, int searchLen);
   void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
  protected:
@@ -630,6 +632,25 @@ void FileDisplay::moveTo(streampos newOffset)
 } // end FileDisplay::moveTo
 
 //--------------------------------------------------------------------
+// Change the file position by searching:
+//
+// Changes the file offset and updates the buffer.
+// Does not update the display.
+//
+// Input:
+//   searchFor:  The bytes to search for
+//   searchLen:  The number of bytes in searchFor
+//
+// Returns:
+//   true:   The search was successful
+//   false:  Search unsuccessful, file not moved
+
+bool FileDisplay::moveTo(Byte* searchFor, int searchLen)
+{
+  return false;
+} // end FileDisplay::moveTo
+
+//--------------------------------------------------------------------
 // Move to the end of the file:
 //
 // Input:
@@ -783,7 +804,80 @@ void exitMsg(int status, const char* message)
 } // end exitMsg
 
 //--------------------------------------------------------------------
+// Get a string using inWin:
+//
+// Input:
+//   buf:       The buffer where the string will be stored
+//   maxLen:    The maximum number of chars to accept (not including NUL byte)
+//   restrict:  If not NULL, accept only chars in this string
+//   upcase:    If true, convert all chars with toupper
+
+void getString(char* buf, int maxLen, const char* restrict=NULL,
+               bool upcase=false)
+{
+  inWin.setCursor(2,1);
+  ConWindow::showCursor();
+
+  bool  done = false;
+  int   i = 0;
+
+  memset(buf, ' ', maxLen);
+  buf[maxLen] = '\0';
+
+  while (!done) {
+    inWin.put(2,1,buf);
+    inWin.update();
+    inWin.setCursor(2+i,1);
+    int key = inWin.readKey();
+    if (upcase) key = toupper(key);
+
+    switch (key) {
+     case KEY_RETURN:  buf[i] = '\0';  done = true;  break; // Enter
+     case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
+
+     case KEY_BACKSPACE:
+     case KEY_DC:
+     case KEY_LEFT:
+     case KEY_DELETE:
+     case 0x08:  if (!i) continue;  buf[--i] = ' ';  break; // Backspace
+
+     default:
+      if (isprint(key) && (!restrict || strchr(restrict, key))) {
+        if (i >= maxLen) continue;
+        buf[i++] = key;
+      }
+    } // end switch key
+  } // end while
+
+  ConWindow::hideCursor();
+  inWin.hide();
+} // end getString
+
+//--------------------------------------------------------------------
+// Position the input window:
+//
+// Input:
+//   cmd:    Indicates where the window should be positioned
+//   width:  The width of the window
+//   title:  The title for the window
+
+void positionInWin(Command cmd, short width, const char* title)
+{
+  inWin.move((screenWidth-width)/2,
+             ((cmd & cmgGotoBottom)
+              ? ((cmd & cmgGotoTop)
+                 ? numLines + 1               // Moving both
+                 : numLines + numLines/2 + 2) // Moving bottom
+              : numLines/2));                 // Moving top
+  inWin.resize(width, 3);
+
+  inWin.border();
+  inWin.put((width-strlen(title))/2,0, title);
+} // end positionInWin
+
+//--------------------------------------------------------------------
 // Display prompt window for editing:
+
 void showEditPrompt()
 {
   promptWin.clear();
@@ -813,7 +907,7 @@ void showPrompt()
   promptWin.border();
 
 #ifdef WIN32_CONSOLE
-  promptWin.put(1,1, "Arrow keys move              "
+  promptWin.put(1,1, "Arrow keys move  F find      "
                 "RET next difference  ESC quit  ALT  freeze top");
   promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
                 "G goto position      Q quit  CTRL freeze bottom");
@@ -821,7 +915,7 @@ void showPrompt()
     topBotLength = 4,
     topLength    = 15;
 #else // curses
-  promptWin.put(1,1, "Arrow keys move              "
+  promptWin.put(1,1, "Arrow keys move  F find      "
                 "RET next difference  ESC quit  T move top");
   promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
                 "G goto position      Q quit  B move bottom");
@@ -831,6 +925,7 @@ void showPrompt()
 #endif
 
   promptWin.putAttribs( 1,1, cPromptKey, 10);
+  promptWin.putAttribs(18,1, cPromptKey, 1);
   promptWin.putAttribs(30,1, cPromptKey, 3);
   promptWin.putAttribs(51,1, cPromptKey, 3);
   promptWin.putAttribs( 1,2, cPromptKey, 1);
@@ -915,6 +1010,17 @@ Command getCommand()
         cmd = cmEditTop;
       break;
 
+     case 'F':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmFind|cmgGotoBottom;
+      else
+        cmd = cmFind|cmgGotoBoth;
+      break;
+
+     case 0x06:               // Ctrl+F
+      cmd = cmFind|cmgGotoTop;
+      break;
+
      case 'G':
       if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
         cmd = cmgGoto|cmgGotoBottom;
@@ -979,6 +1085,12 @@ Command getCommand()
         cmd = cmEditTop;
       break;
 
+     case 'F':
+      cmd = cmFind;
+      if (lockState != lockTop)    cmd |= cmgGotoTop;
+      if (lockState != lockBottom) cmd |= cmgGotoBottom;
+      break;
+
      case 'G':
       cmd = cmgGoto;
       if (lockState != lockTop)    cmd |= cmgGotoTop;
@@ -1017,56 +1129,16 @@ Command getCommand()
 #endif  // end else curses interface
 
 //--------------------------------------------------------------------
-// Get a file position:
+// Get a file position and move there:
 
 void gotoPosition(Command cmd)
 {
-  inWin.move((screenWidth-inWidth-2)/2,
-             ((cmd & cmgGotoBottom)
-              ? ((cmd & cmgGotoTop)
-                 ? numLines + 1               // Moving both
-                 : numLines + numLines/2 + 2) // Moving bottom
-              : numLines/2));                 // Moving top
+  positionInWin(cmd, inWidth+2, " Goto ");
 
-  inWin.putChar(1,1, ' ', inWidth);
-  inWin.show();
-  inWin.update();
-  inWin.setCursor(2,1);
-  ConWindow::showCursor();
+  const int  maxLen = inWidth-2;
+  char  buf[maxLen+1];
 
-  const int  bufLen = inWidth-2;
-  char  buf[bufLen+1];
-  bool  done = false;
-  int   i = 0;
-
-  memset(buf, ' ', bufLen);
-  buf[bufLen] = '\0';
-
-  while (!done) {
-    inWin.put(2,1,buf);
-    inWin.update();
-    inWin.setCursor(2+i,1);
-    int key = toupper(inWin.readKey());
-
-    if (key) {
-      if (strchr("0123456789ABCDEF", key)) {
-        if (i >= bufLen) continue;
-        buf[i++] = key;
-      } else switch (key) {
-       case KEY_RETURN:  buf[i] = '\0';  done = true;  break; // Enter
-       case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
-
-       case KEY_BACKSPACE:
-       case KEY_DC:
-       case KEY_LEFT:
-       case KEY_DELETE:
-       case 0x08:  if (!i) continue;  buf[--i] = ' ';  break; // Backspace
-      } // end else switch key
-    } // end if key
-  } // end while
-
-  ConWindow::hideCursor();
-  inWin.hide();
+  getString(buf, maxLen, "0123456789ABCDEF", true);
 
   if (!buf[0])
     return;
@@ -1078,6 +1150,33 @@ void gotoPosition(Command cmd)
   if (cmd & cmgGotoBottom)
     file2.moveTo(pos);
 } // end gotoPosition
+
+//--------------------------------------------------------------------
+// Search for text or bytes in the files:
+
+void searchFiles(Command cmd)
+{
+  positionInWin(cmd, screenWidth, " Find ");
+
+  const int  maxLen = screenWidth-4;
+  Byte  buf[maxLen+1];
+
+  getString(reinterpret_cast<char*>(buf), maxLen);
+
+  int searchLen = strlen(reinterpret_cast<char*>(buf));
+
+  if (!searchLen) return;
+
+  if (displayTable == ebcdicDisplayTable) {
+    for (int i = 0; i < searchLen; ++i)
+      buf[i] = ascii2ebcdicTable[buf[i]];
+  } // end if in EBCDIC mode
+
+  if (cmd & cmgGotoTop)
+    file1.moveTo(buf, searchLen);
+  if (cmd & cmgGotoBottom)
+    file2.moveTo(buf, searchLen);
+} // end searchFiles
 
 //--------------------------------------------------------------------
 // Handle a command:
@@ -1114,6 +1213,8 @@ void handleCmd(Command cmd)
   } // end if move
   else if ((cmd & cmgGotoMask) == cmgGoto)
     gotoPosition(cmd);
+  else if ((cmd & cmgGotoMask) == cmFind)
+    searchFiles(cmd);
   else if (cmd == cmNextDiff) {
     if (lockState) {
       lockState = lockNeither;

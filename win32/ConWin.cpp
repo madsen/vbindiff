@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4615 2005-03-23 19:22:50Z cjm $
+// $Id: ConWin.cpp 4617 2005-03-23 23:04:29Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -220,12 +220,8 @@ void ConWindow::init(short x, short y, short width, short height, Style style)
   attribs = colorStyle[style];
   pos.X  = x;
   pos.Y  = y;
-  size.X = width;
-  size.Y = height;
 
-  data = new CHAR_INFO[size.X * size.Y];
-
-  clear();
+  resize(width, height);
 } // end ConWindow::init
 
 //--------------------------------------------------------------------
@@ -363,6 +359,20 @@ void ConWindow::putChar(short x, short y, char c, short count)
     (ci++)->Attributes = attribs;
   }
 } // end ConWindow::putAttribs
+
+//--------------------------------------------------------------------
+void ConWindow::resize(short width, short height)
+{
+  if ((size.X != width) || (size.Y != height)) {
+    size.X = width;
+    size.Y = height;
+
+    delete [] data;
+    data = new CHAR_INFO[size.X * size.Y];
+  } // end if new size
+
+  clear();
+} // end ConWindow::resize
 
 //--------------------------------------------------------------------
 void ConWindow::setAttribs(Style color)
