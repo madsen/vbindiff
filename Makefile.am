@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 4605 2005-03-21 17:56:26Z cjm $
+# $Id: Makefile.am 4607 2005-03-21 18:34:39Z cjm $
 
 bin_PROGRAMS = vbindiff
 dist_man_MANS = vbindiff.1
@@ -7,8 +7,9 @@ vbindiff_SOURCES = vbindiff.cpp curses/ConWin.cpp curses/ConWin.hpp  \
 		   GetOpt/GetOpt.cpp GetOpt/GetOpt.hpp
 EXTRA_DIST = vbindiff.pod
 
-AM_CFLAGS = -Wall -D_FILE_OFFSET_BITS=64 -Icurses
+AM_CPPFLAGS = -I$(srcdir)/curses
 
+AM_CFLAGS = -Wall -D_FILE_OFFSET_BITS=64
 AM_CXXFLAGS = $(AM_CFLAGS)
 
 vbindiff.1 : vbindiff.pod
