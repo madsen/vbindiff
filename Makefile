@@ -1,5 +1,5 @@
 #--------------------------------------------------------------------------
-# $Id: Makefile,v 1.5 1996/01/18 18:06:16 Madsen Exp $
+# $Id: Makefile,v 1.6 1996/01/18 21:40:42 Madsen Exp $
 #--------------------------------------------------------------------------
 # Visual Binary Diff
 # Copyright 1995 by Christopher J. Madsen
@@ -59,12 +59,12 @@ dist: all
 	@copy *.h $(VBD_TMP)
 	@copy *.def $(VBD_TMP)
 	copy Makefile $(VBD_TMP)\\Makefile
-	copy VBinDiff.txt $(VBD_TMP)\\VBinDiff.txt
 	attrib -r $(VBD_TMP)\\*
 	zip -9mj source $(VBD_TMP)\\*
 	copy ReadMe.1st $(VBD_TMP)\\ReadMe.1st
 	copy File_ID.DIZ $(VBD_TMP)\\File_ID.DIZ
 	@copy *.exe $(VBD_TMP)
+	copy VBinDiff.txt $(VBD_TMP)\\VBinDiff.txt
 	attrib -r $(VBD_TMP)\\*
 	zip -9mj vbindiff $(VBD_TMP)\\*
 	@zip -9j vbindiff /emx/doc/COPYING
