@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.6 1996/01/17 21:25:29 Madsen Exp $
+// $Id: vbindiff.cc,v 1.7 1996/01/18 21:29:11 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -64,7 +64,7 @@ const Command  cmmMoveBottom  = 0x10;
 const Command  cmmMoveByte    = 0x00; // Move 1 byte
 const Command  cmmMoveLine    = 0x01; // Move 1 line
 const Command  cmmMovePage    = 0x02; // Move 1 page
-const Command  cmmMoveAll     = 0x03; // Not used
+const Command  cmmMoveAll     = 0x03; // Move to beginning
 
 const Command  cmmMoveBoth    = cmmMoveTop|cmmMoveBottom;
 
@@ -111,7 +111,8 @@ class FileDisplay
   void         shutDown();
   void         display()   const;
   const Byte*  getBuffer() const { return buffer; };
-  void         move(int step);
+  void         move(int step)    { moveTo(offset + step); };
+  void         moveTo(streampos newOffset);
   Boolean      setFile(const char* aFileName);
 }; // end FileDisplay
 
@@ -371,10 +372,22 @@ void FileDisplay::display() const
 //   step:
 //     The number of bytes to move
 //     A negative value means to move backward
+//
+// void FileDisplay::move(int step) /* Inline function */
 
-void FileDisplay::move(int step)
+//--------------------------------------------------------------------
+// Change the file position:
+//
+// Changes the file offset and updates the buffer.
+// Does not update the display.
+//
+// Input:
+//   newOffset:
+//     The new position of the file
+
+void FileDisplay::moveTo(streampos newOffset)
 {
-  offset += step;
+  offset = newOffset;
 
   if (offset < 0)
     offset = 0;
@@ -385,7 +398,7 @@ void FileDisplay::move(int step)
   file.seekg(offset);
   file.read(buffer, bufSize);
   bufContents = file.gcount();
-} // end FileDisplay::move
+} // end FileDisplay::moveTo
 
 //--------------------------------------------------------------------
 // Open a file for display:
@@ -578,6 +591,9 @@ Command getCommand()
      case K_PAGEUP:
       cmd = cmmMove|cmmMoveBoth|cmmMovePage;
       break;
+     case K_HOME:
+      cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
+      break;
 
      case K_ALT_DOWN:
       cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
@@ -597,6 +613,9 @@ Command getCommand()
      case K_ALT_PAGEUP:
       cmd = cmmMove|cmmMoveBottom|cmmMovePage;
       break;
+     case K_ALT_HOME:
+      cmd = cmmMove|cmmMoveBottom|cmmMoveAll;
+      break;
 
      case K_CTRL_DOWN:
       cmd = cmmMove|cmmMoveTop|cmmMoveLine|cmmMoveForward;
@@ -615,6 +634,9 @@ Command getCommand()
       break;
      case K_CTRL_PAGEUP:
       cmd = cmmMove|cmmMoveTop|cmmMovePage;
+      break;
+     case K_CTRL_HOME:
+      cmd = cmmMove|cmmMoveTop|cmmMoveAll;
       break;
     } // end inner switch
     break;
@@ -648,10 +670,16 @@ void handleCmd(Command cmd)
       step *= -1;               // We're moving backward
 
     if (cmd & cmmMoveTop)
-      file1.move(step);
+      if (step)
+        file1.move(step);
+      else
+        file1.moveTo(0);
 
     if (cmd & cmmMoveBottom)
-      file2.move(step);
+      if (step)
+        file2.move(step);
+      else
+        file2.moveTo(0);
   } // end if move
   else if (cmd == cmNextDiff) {
     do {
@@ -717,7 +745,7 @@ int main(int argc, char* argv[])
   } // end while options
 
   if (show_version) {
-      cerr << "VBinDiff $Revision: 1.6 $\n";
+      cerr << "VBinDiff $Revision: 1.7 $\n";
       exit(0);
   }
 
@@ -731,7 +759,7 @@ int main(int argc, char* argv[])
     usage(1);
 
   cout << "\
-VBinDiff $Revision: 1.6 $, Copyright 1995 Christopher J. Madsen
+VBinDiff $Revision: 1.7 $, Copyright 1995 Christopher J. Madsen
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!initialize()) {

@@ -1,5 +1,5 @@
 ===============================================================================
-VBinDiff                    Visual Binary Diff 1.6                  17-Jan-1996
+VBinDiff                    Visual Binary Diff 1.7                  18-Jan-1996
 ===============================================================================
                                            Copyright 1995 Christopher J. Madsen
 
@@ -50,6 +50,7 @@ Left    Move one byte towards the beginning of the file
 Right   Move one byte towards the end of the file
 PageUp  Move one page (8 lines) towards the beginning of the file
 PageDn  Move one page (8 lines) towards the end of the file
+Home    Move to the beginning of the file
 
 Holding down Alt while using the movement keys will scroll only the
 bottom file.  Holding down Ctrl will scroll only the top file.
