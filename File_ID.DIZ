@@ -1,4 +1,5 @@
-Visual Binary Diff 1.7 (18-Jan-1996)
+$$Id: File_ID.DIZ,v 1.3 1996/02/15 03:24:49 Madsen Exp $
+Visual Binary Diff $%v%$ ($%d%$)
 ========================================
 VBinDiff interactively displays two
 files in hex and ASCII with differences
