@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4615 2005-03-23 19:22:50Z cjm $
+// $Id: vbindiff.cpp 4616 2005-03-23 20:06:55Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -1023,8 +1023,10 @@ void gotoPosition(Command cmd)
 {
   inWin.move((screenWidth-inWidth-2)/2,
              ((cmd & cmgGotoBottom)
-              ? ((cmd & cmgGotoTop) ? 10 : 15)
-              : 4));
+              ? ((cmd & cmgGotoTop)
+                 ? numLines + 1               // Moving both
+                 : numLines + numLines/2 + 2) // Moving bottom
+              : numLines/2));                 // Moving top
 
   inWin.putChar(1,1, ' ', inWidth);
   inWin.show();
