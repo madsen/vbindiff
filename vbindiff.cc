@@ -1,8 +1,8 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.4 1996/01/15 23:32:58 Madsen Exp $
+// $Id: vbindiff.cc,v 1.5 1996/01/16 02:57:12 Madsen Exp $
 //--------------------------------------------------------------------
 //
-//   Visual Binary DIFF
+//   Visual Binary Diff
 //   Copyright 1995 by Christopher J. Madsen
 //
 //   Visual display of differences in binary files
@@ -441,7 +441,7 @@ Boolean initPrompt()
   wm_puta_at(promptWin, 19,1, cPromptKey, 1);
   wm_puta_at(promptWin, 38,1, cPromptKey, 3);
   wm_puta_at(promptWin, 59,1, cPromptKey, 4);
-  wm_open (promptWin);          /* Open the window    */
+  wm_open (promptWin);          // Open the window
 
   return True;
 } // end initPrompt
@@ -479,6 +479,31 @@ Boolean initialize()
 } // end initialize
 
 //--------------------------------------------------------------------
+// Display license and warranty information and exit:
+
+static void license()
+{
+  cout << "\
+Visual Binary Diff
+Copyright 1995 by Christopher J. Madsen
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of
+the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.\n";
+  exit(0);
+} // end license
+
+//--------------------------------------------------------------------
 // Display usage information and exit:
 //
 // Input:
@@ -492,11 +517,13 @@ static void usage(int status)
   if (status > 1)
     cerr << "Try `" << program_name << " --help' for more information.\n";
   else {
-    cout << "Usage: " << program_name << " [OPTIONS] FILE1 FILE2
+    cout << "Usage: " << program_name << " FILE1 FILE2
 Compare FILE1 and FILE2 byte by byte.
 
-      --help               display this help and exit
-      -V, --version        output version information and exit\n";
+Options:
+      --help               display this help information and exit
+      -L, --license        display license & warranty information and exit
+      -V, --version        display version information and exit\n";
   }
   exit(status);
 } // end usage
@@ -634,14 +661,18 @@ void handleCmd(Command cmd)
 //--------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-  /* If non-zero, display usage information and exit.  */
+  // If non-zero, display usage information and exit.
   static int show_help;
 
-  /* If non-zero, print the version on standard output then exit.  */
+  // If non-zero, display license & warranty information and exit.
+  static int show_license;
+
+  // If non-zero, print the version on standard output then exit.
   static int show_version;
 
   static struct option const long_options[] = {
-    {"help", no_argument, &show_help, 1},
+    {"help",    no_argument, &show_help, 1},
+    {"license", no_argument, &show_license, 1},
     {"version", no_argument, &show_version, 1},
     {NULL, 0, NULL, 0}
   };
@@ -654,10 +685,14 @@ int main(int argc, char* argv[])
 
   // Parse command line options:
   int c;
-  while ((c = getopt_long(argc, argv, "V", long_options, (int *)0))
+  while ((c = getopt_long(argc, argv, "LV", long_options, (int *)0))
 	 != EOF) {
     switch (c) {
      case 0:
+      break;
+
+     case 'L':
+      show_license = 1;
       break;
 
      case 'V':
@@ -670,15 +705,22 @@ int main(int argc, char* argv[])
   } // end while options
 
   if (show_version) {
-      cerr << "VBinDiff $Revision: 1.4 $\n";
+      cerr << "VBinDiff $Revision: 1.5 $\n";
       exit(0);
   }
 
   if (show_help)
     usage(0);
 
+  if (show_license)
+    license();
+
   if (argc != 3)
     usage(1);
+
+  cout << "\
+VBinDiff $Revision: 1.5 $, Copyright 1995 Christopher J. Madsen
+VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!initialize()) {
     cerr << program_name << ": Unable to initialize windows\n";
