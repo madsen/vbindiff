@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4592 2005-03-12 17:11:36Z cjm $
+// $Id: vbindiff.cpp 4593 2005-03-12 18:24:15Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -327,7 +327,7 @@ void FileDisplay::display()
   char  buf2[screenWidth+1];
   buf2[screenWidth] = '\0';
 
-  memset(buf, ' ', sizeof(buf));
+  memset(buf, ' ', sizeof(buf)-1);
 
   for (i = 0; i < numLines; i++) {
 //    cerr << i << '\n';
