@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4596 2005-03-14 22:32:32Z cjm $
+// $Id: vbindiff.cpp 4597 2005-03-15 19:45:51Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -40,6 +40,7 @@ using namespace std;
 const char titleString[] =
   "\nVBinDiff " PACKAGE_VERSION " by Christopher J. Madsen";
 
+void exitMsg(int status, const char* message);
 void usage(bool showHelp=true, int exitStatus=0);
 
 //====================================================================
@@ -89,6 +90,7 @@ const short  leftMar2 = 61;     // Starting column of ASCII display
 
 const int  lineWidth = 16;      // Number of bytes displayed per line
 
+const int  promptHeight = 4;    // Height of prompt window
 const int  inWidth = 10;        // Width of input window (excluding border)
 const int  screenWidth = 80;
 
@@ -238,6 +240,7 @@ LockState    lockState = lockNeither;
 
 int  numLines  = 9;       // Number of lines of each file to display
 int  bufSize   = numLines * lineWidth;
+int  linesBetween = 1;    // Number of lines of padding between files
 
 // The number of bytes to move for each possible step size:
 //   See cmmMoveByte, cmmMoveLine, cmmMovePage
@@ -382,7 +385,8 @@ void FileDisplay::init(int y, const Difference* aDiff,
   diffs = aDiff;
   yPos  = y;
 
-  win.init(0,y, screenWidth,numLines+1+(y==0), cFileWin); // FIXME
+  win.init(0,y, screenWidth, (numLines + 1 + ((y==0) ? linesBetween : 0)),
+           cFileWin);
 
   resize();
 
@@ -491,11 +495,8 @@ bool FileDisplay::edit(const FileDisplay* other)
       writable = false;
       file.clear();
       file.open(fileName, ios::in|ios::binary);
-      if (!file) {
-        ConWindow::shutdown();
-        cerr << "Unable to open " << fileName << " for writing\n";
-        exit(1);
-      }
+      if (!file)
+        exitMsg(1, (string("Unable to open ") + fileName + " for writing").c_str());
       return false;
     }
   }
@@ -718,6 +719,38 @@ bool FileDisplay::setFile(const char* aFileName)
 //====================================================================
 // Main Program:
 //--------------------------------------------------------------------
+void calcScreenLayout(bool resize = true)
+{
+  int  screenX, screenY;
+
+  ConWindow::getScreenSize(screenX, screenY);
+
+  if (screenX < screenWidth) {
+    ostringstream  err;
+    err << "The screen must be at least "
+        << screenWidth << " characters wide.";
+    exitMsg(2, err.str().c_str());
+  }
+
+  if (screenY < promptHeight + 4) {
+    ostringstream  err;
+    err << "The screen must be at least "
+        << (promptHeight + 4) << " lines high.";
+    exitMsg(2, err.str().c_str());
+  }
+
+  numLines = screenY - promptHeight - 2;
+  linesBetween = numLines % 2;
+  numLines = (numLines - linesBetween) / 2;
+
+  bufSize = numLines * lineWidth;
+
+  steps[cmmMovePage] = bufSize-lineWidth;
+
+  // FIXME resize existing windows
+} // end calcScreenLayout
+
+//--------------------------------------------------------------------
 void displayLockState()
 {
   promptWin.putAttribs(63,1,
@@ -727,6 +760,21 @@ void displayLockState()
                        ((lockState == lockTop)    ? cLocked : cBackground),
                        11);
 } // end displayLockState
+
+//--------------------------------------------------------------------
+// Print a message to stderr and exit:
+//
+// Input:
+//   status:   The exit status to use
+//   message:  The message to print
+
+void exitMsg(int status, const char* message)
+{
+  ConWindow::shutdown();
+
+  cerr << endl << message << endl;
+  exit(status);
+} // end exitMsg
 
 //--------------------------------------------------------------------
 // Display prompt window for editing:
@@ -782,18 +830,21 @@ bool initialize()
 
   ConWindow::hideCursor();
 
+  calcScreenLayout(false);
+
   inWin.init(0,0, inWidth+2,3, cPromptBdr);
   inWin.border();
   inWin.put((inWidth-4)/2,0, " Goto ");
   inWin.setAttribs(cPromptWin);
   inWin.hide();
 
-  promptWin.init(0,21, screenWidth,4, cBackground);
+  promptWin.init(0,numLines * 2 + linesBetween + 2,
+                 screenWidth,promptHeight, cBackground);
   showPrompt();
 
   diffs.resize();
-  file1.init(0,&diffs);
-  file2.init(11,&diffs);
+  file1.init(0, &diffs);
+  file2.init(numLines + linesBetween + 1, &diffs);
 
   return true;
 } // end initialize

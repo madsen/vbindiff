@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4595 2005-03-14 16:57:05Z cjm $
+// $Id: ConWin.cpp 4597 2005-03-15 19:45:51Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -12,6 +12,8 @@
 #include <stdlib.h>
 
 #include "ConWin.hpp"
+
+void exitMsg(int status, const char* message); // From vbindiff.cpp
 
 enum ColorPair {
   pairWhiteBlue= 1,
@@ -127,10 +129,10 @@ ConWindow::~ConWindow()
 void ConWindow::init(short x, short y, short width, short height, Style attrib)
 {
   if ((win = newwin(height, width, y, x)) == 0)
-    exit(98);                   // FIXME
+    exitMsg(99, "Internal error: Failed to create window");
 
   if ((pan = new_panel(win)) == 0)
-    exit(99);                 // FIXME
+    exitMsg(99, "Internal error: Failed to create panel");
 
   wbkgdset(win, attribStyle[attrib] | ' ');
 
