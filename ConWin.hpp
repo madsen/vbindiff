@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4592 2005-03-12 17:11:36Z cjm $
+// $Id: ConWin.hpp 4595 2005-03-14 16:57:05Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -15,6 +15,11 @@
 
 #include <panel.h>
 #undef border
+
+#define KEY_ESCAPE 0x1B
+#define KEY_TAB    0x09
+#define KEY_DELETE 0x7F
+#define KEY_RETURN 0x0D
 
 enum Style {
   cBackground = 0,
@@ -57,11 +62,11 @@ class ConWindow
   void hide() { hide_panel(pan); };
   void show() { show_panel(pan); };
 
-  static void hideCursor() { curs_set(0); };
-  static void showCursor() { curs_set(1); };
+  static void getScreenSize(int& x, int& y) { getmaxyx(curscr, y, x); };
+  static void hideCursor()                  { curs_set(0);            };
+  static void showCursor()                  { curs_set(1);            };
   static void shutdown();
   static bool startup();
-
 }; // end ConWindow
 
 #endif // __CONWIN_HPP

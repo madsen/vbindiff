@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4594 2005-03-14 15:39:43Z cjm $
+// $Id: vbindiff.cpp 4595 2005-03-14 16:57:05Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -445,8 +445,6 @@ void FileDisplay::display()
 
 bool FileDisplay::edit(const FileDisplay* other)
 {
-  return false;
-#if 0
   if (!bufContents && offset)
     return false;               // You must not be completely past EOF
 
@@ -476,7 +474,7 @@ bool FileDisplay::edit(const FileDisplay* other)
   bool  hiNib = true;
   bool  ascii = false;
   bool  changed = false;
-  KEY_EVENT_RECORD e;
+  int   key;
 
   showEditPrompt();
   win.setCursor(leftMar,1);
@@ -485,17 +483,18 @@ bool FileDisplay::edit(const FileDisplay* other)
   for (;;) {
     win.setCursor((ascii ? leftMar2 + x : leftMar + 3*x + !hiNib) + (x / 8),
                   y+1);
-    ConWindow::readKey(e);
+    key = win.readKey();
 
-    switch (e.wVirtualKeyCode) {
-     case VK_ESCAPE: goto done;
-     case VK_TAB:
+    switch (key) {
+     case KEY_ESCAPE: goto done;
+     case KEY_TAB:
       hiNib = true;
       ascii = !ascii;
       break;
 
-     case VK_BACK:
-     case VK_LEFT:
+     case KEY_DELETE:
+     case KEY_BACKSPACE:
+     case KEY_LEFT:
       if (!hiNib)
         hiNib = true;
       else {
@@ -505,21 +504,21 @@ bool FileDisplay::edit(const FileDisplay* other)
       if (hiNib || (x < lineWidth-1))
         break;
       // else fall thru
-     case VK_UP:   if (--y < 0) y = numLines-1; break;
+     case KEY_UP:   if (--y < 0) y = numLines-1; break;
 
      default: {
        short newByte = -1;
-       if ((e.wVirtualKeyCode == VK_RETURN) && other &&
+       if ((key == KEY_RETURN) && other &&
            (other->bufContents > x + y*lineWidth)) {
          newByte = other->line[y][x]; // Copy from other file
          hiNib = ascii; // Always advance cursor to next byte
        } else if (ascii) {
-         if (isprint(e.uChar.AsciiChar)) newByte = e.uChar.AsciiChar;
+         if (isprint(key)) newByte = key;
        } else { // hex
-         if (isdigit(e.uChar.AsciiChar))
-           newByte = e.uChar.AsciiChar - '0';
-         else if (isxdigit(e.uChar.AsciiChar))
-           newByte = toupper(e.uChar.AsciiChar) - 'A' + 10;
+         if (isdigit(key))
+           newByte = key - '0';
+         else if (isxdigit(key))
+           newByte = toupper(key) - 'A' + 10;
          if (newByte >= 0)
            if (hiNib)
              newByte = (newByte * 0x10) | (0x0F & line[y][x]);
@@ -532,7 +531,7 @@ bool FileDisplay::edit(const FileDisplay* other)
        } else
          break;
      } // end default and fall thru
-     case VK_RIGHT:
+     case KEY_RIGHT:
       if (hiNib && !ascii)
         hiNib = false;
       else {
@@ -542,7 +541,7 @@ bool FileDisplay::edit(const FileDisplay* other)
       if (x || !hiNib)
         break;
       // else fall thru
-     case VK_DOWN: if (++y >= numLines) y = 0;  break;
+     case KEY_DOWN: if (++y >= numLines) y = 0;  break;
 
     } // end switch
 
@@ -555,8 +554,8 @@ bool FileDisplay::edit(const FileDisplay* other)
     promptWin.put(30,1,"Save changes (Y/N):");
     promptWin.update();
     promptWin.setCursor(50,1);
-    ConWindow::readKey(e);
-    if (toupper(e.uChar.AsciiChar) != 'Y') {
+    key = promptWin.readKey();
+    if (toupper(key) != 'Y') {
       changed = false;
       moveTo(offset);           // Re-read buffer contents
     } else {
@@ -567,7 +566,6 @@ bool FileDisplay::edit(const FileDisplay* other)
   showPrompt();
   ConWindow::hideCursor();
   return changed;
-#endif // FIXME
 } // end FileDisplay::edit
 
 //--------------------------------------------------------------------
@@ -752,7 +750,7 @@ bool initialize()
 
   inWin.init(0,0, inWidth+2,3, cPromptBdr);
   inWin.border();
-  inWin.put((inWidth-4)/2,0, "\264Goto\303");
+  inWin.put((inWidth-4)/2,0, " Goto ");
   inWin.setAttribs(cPromptWin);
   inWin.hide();
 
@@ -779,30 +777,24 @@ Command getCommand()
     int e = promptWin.readKey();
 
     switch (toupper(e)) {
-     case 0x0D:               // Enter
+     case KEY_RETURN:               // Enter
       cmd = cmNextDiff;
       break;
 
-//FIX     case 0x05:                 // Ctrl+E
-//FIX     case 'E':
-//FIX      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
-//FIX        cmd = cmEditBottom;
-//FIX      else
-//FIX        cmd = cmEditTop;
-//FIX      break;
-//FIX
-//FIX     case 'G':
-//FIX      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
-//FIX        cmd = cmgGoto|cmgGotoBottom;
-//FIX      else
-//FIX        cmd = cmgGoto|cmgGotoBoth;
-//FIX      break;
-//FIX
-//FIX     case 0x07:               // Ctrl+G
-//FIX      cmd = cmgGoto|cmgGotoTop;
-//FIX      break;
+     case 'E':
+      if (lockState == lockTop)
+        cmd = cmEditBottom;
+      else
+        cmd = cmEditTop;
+      break;
 
-     case 0x1B:               // Esc
+     case 'G':
+      cmd = cmgGoto;
+      if (lockState != lockTop)    cmd |= cmgGotoTop;
+      if (lockState != lockBottom) cmd |= cmgGotoBottom;
+      break;
+
+     case KEY_ESCAPE:
      case 0x03:               // Ctrl+C
      case 'Q':
       cmd = cmQuit;
@@ -836,13 +828,13 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
-#if 0
   inWin.move((screenWidth-inWidth-2)/2,
              ((cmd & cmgGotoBottom)
               ? ((cmd & cmgGotoTop) ? 10 : 15)
               : 4));
 
   inWin.putChar(1,1, ' ', inWidth);
+  inWin.show();
   inWin.update();
   inWin.setCursor(2,1);
   ConWindow::showCursor();
@@ -851,7 +843,6 @@ void gotoPosition(Command cmd)
   char  buf[bufLen+1];
   bool  done = false;
   int   i = 0;
-  KEY_EVENT_RECORD e;
 
   memset(buf, ' ', bufLen);
   buf[bufLen] = '\0';
@@ -860,28 +851,27 @@ void gotoPosition(Command cmd)
     inWin.put(2,1,buf);
     inWin.update();
     inWin.setCursor(2+i,1);
-    ConWindow::readKey(e);
-
-    char key = toupper(e.uChar.AsciiChar);
+    int key = toupper(inWin.readKey());
 
     if (key) {
       if (strchr("0123456789ABCDEF", key)) {
         if (i >= bufLen) continue;
         buf[i++] = key;
-      } else if (key == 0x0D) { // Enter
-        buf[i] = '\0';
-        done = true;
-      } else if (key == 0x08) { // Backspace
-        if (!i) continue;
-        buf[--i] = ' ';
-      } else if (key == 0x1B) { // ESC
-        buf[0] = '\0';
-        done = true;
-      }
+      } else switch (key) {
+       case KEY_RETURN:  buf[i] = '\0';  done = true;  break; // Enter
+       case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
+
+       case KEY_BACKSPACE:
+       case KEY_DC:
+       case KEY_LEFT:
+       case KEY_DELETE:
+       case 0x08:  if (!i) continue;  buf[--i] = ' ';  break; // Backspace
+      } // end else switch key
     } // end if key
   } // end while
 
   ConWindow::hideCursor();
+  inWin.hide();
 
   if (!buf[0])
     return;
@@ -892,7 +882,6 @@ void gotoPosition(Command cmd)
     file1.moveTo(pos);
   if (cmd & cmgGotoBottom)
     file2.moveTo(pos);
-#endif
 } // end gotoPosition
 
 //--------------------------------------------------------------------

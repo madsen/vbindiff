@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4592 2005-03-12 17:11:36Z cjm $
+// $Id: ConWin.cpp 4595 2005-03-14 16:57:05Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -63,21 +63,15 @@ bool ConWindow::startup()
   if (!initscr()) return false; // initialize the curses library
   atexit(ConWindow::shutdown);  // just in case
 
-  keypad(stdscr, TRUE);  /* enable keyboard mapping */
-  nonl();         /* tell curses not to do NL->CR/NL on output */
-  cbreak();       /* take input chars one at a time, no wait for \n */
-  noecho();         /* echo input - in color */
+  keypad(stdscr, true);         // enable keyboard mapping
+  nonl();           // tell curses not to do NL->CR/NL on output
+  cbreak();         // take input chars one at a time, no wait for \n
+  noecho();         // do not echo input
 
   if (!has_colors()) return false; // FIXME
 
   start_color();
 
-  /*
-   * Simple color assignment, often all we need.  Color pair 0 cannot
-   * be redefined.  This example uses the same value for the color
-   * pair as for the foreground color, though of course that is not
-   * necessary:
-   */
   init_pair(pairWhiteBlue,  COLOR_WHITE,  COLOR_BLUE);
   init_pair(pairBlackWhite, COLOR_BLACK,  COLOR_WHITE);
   init_pair(pairRedBlue,    COLOR_RED,    COLOR_BLUE);
@@ -220,6 +214,7 @@ void ConWindow::putChar(short x, short y, char c, short count)
 
 int ConWindow::readKey()
 {
+  top_panel(pan);
   update_panels();
   doupdate();
 
