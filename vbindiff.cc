@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.5 1996/01/16 02:57:12 Madsen Exp $
+// $Id: vbindiff.cc,v 1.6 1996/01/17 21:25:29 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fstream.h>
+#include <strstream.h>
 #include <sys/winmgr.h>
 #include <sys/kbdscan.h>
 
@@ -111,7 +112,7 @@ class FileDisplay
   void         display()   const;
   const Byte*  getBuffer() const { return buffer; };
   void         move(int step);
-  void         setFile(const char* aFileName);
+  Boolean      setFile(const char* aFileName);
 }; // end FileDisplay
 
 class Difference
@@ -394,8 +395,12 @@ void FileDisplay::move(int step)
 //
 // Input:
 //   aFileName:  The name of the file to open
+//
+// Returns:
+//   True:   Operation successful
+//   False:  Unable to open file
 
-void FileDisplay::setFile(const char* aFileName)
+Boolean FileDisplay::setFile(const char* aFileName)
 {
   strncpy(fileName, aFileName, maxPath);
   fileName[maxPath-1] = '\0';
@@ -404,11 +409,17 @@ void FileDisplay::setFile(const char* aFileName)
   wm_puta_at(bgWin, 0,yPos, cFileName, 80);
 
   file.close();
+  bufContents = 0;
   file.open(fileName, ios::in|ios::bin|ios::nocreate);
+
+  if (!file)
+    return False;
 
   offset = 0;
   file.read(buffer, bufSize);
   bufContents = file.gcount();
+
+  return True;
 } // end FileDisplay::setFile
 
 //====================================================================
@@ -649,6 +660,7 @@ void handleCmd(Command cmd)
     } while (!diffs.compute());
   } // end else if cmNextDiff
 
+  // Make sure we haven't gone past the end of both files:
   while (diffs.compute() < 0) {
     file1.move(-steps[cmmMovePage]);
     file2.move(-steps[cmmMovePage]);
@@ -677,9 +689,9 @@ int main(int argc, char* argv[])
     {NULL, 0, NULL, 0}
   };
 
-  if ((program_name = strrchr(argv[0], '\\')) ||
-      (program_name = strrchr(argv[0], '/')))
-    ++program_name;
+  if ((program_name = strrchr(argv[0], '\\')))
+    // Isolate the filename and convert to lowercase:
+    strlwr(++const_cast<char*>(program_name));
   else
     program_name = argv[0];
 
@@ -705,7 +717,7 @@ int main(int argc, char* argv[])
   } // end while options
 
   if (show_version) {
-      cerr << "VBinDiff $Revision: 1.5 $\n";
+      cerr << "VBinDiff $Revision: 1.6 $\n";
       exit(0);
   }
 
@@ -719,25 +731,31 @@ int main(int argc, char* argv[])
     usage(1);
 
   cout << "\
-VBinDiff $Revision: 1.5 $, Copyright 1995 Christopher J. Madsen
+VBinDiff $Revision: 1.6 $, Copyright 1995 Christopher J. Madsen
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!initialize()) {
-    cerr << program_name << ": Unable to initialize windows\n";
+    cerr << '\n' << program_name << ": Unable to initialize windows\n";
     return 1;
   }
 
-  file1.setFile(argv[1]);
-  file2.setFile(argv[2]);
+  char  error[80] = "";
+  ostrstream errMsg(error, sizeof(error));
 
-  diffs.compute();
+  if (!file1.setFile(argv[1]))
+    errMsg << "Unable to open " << argv[1];
+  else if (!file2.setFile(argv[2]))
+    errMsg << "Unable to open " << argv[2];
+  else {
+    diffs.compute();
 
-  file1.display();
-  file2.display();
+    file1.display();
+    file2.display();
 
-  Command  cmd;
-  while ((cmd = getCommand()) != cmQuit)
-    handleCmd(cmd);
+    Command  cmd;
+    while ((cmd = getCommand()) != cmQuit)
+      handleCmd(cmd);
+  } // end else files opened successfully
 
   file1.shutDown();
   file2.shutDown();
@@ -745,6 +763,11 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
   wm_close_all();               // Close all windows
   wm_exit();                    // End window manager
 
+  if (*error) {
+    errMsg << '\n' << '\0';
+    cerr << '\n' << program_name << ": " << error;
+    return 1;
+  }
   return 0;
 } // end main
 
