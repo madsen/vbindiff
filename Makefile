@@ -1,5 +1,5 @@
 #--------------------------------------------------------------------------
-# $Id: Makefile,v 1.3 1996/01/18 02:37:06 Madsen Exp $
+# $Id: Makefile,v 1.4 1996/01/18 16:53:43 Madsen Exp $
 #--------------------------------------------------------------------------
 # Visual Binary Diff
 # Copyright 1995 by Christopher J. Madsen
@@ -44,10 +44,11 @@ clean:
 	$(RM) *.o *.obj
 
 dist: all
-	@echo Did you remember to update File_ID.DIZ?
+	@echo Did you remember to update File_ID.DIZ, \
+		ReadMe.1st, and VBinDiff.txt?
 	-$(RM) vbindiff.zip source.zip
 	zip -9 source *.cc *.c *.h *.def Makefile
-	zip -9 vbindiff *.1st *.diz *.exe
+	zip -9 vbindiff *.1st *.diz *.exe VBinDiff.txt
 	@zip -9j vbindiff /emx/doc/COPYING
 	@zip -0 vbindiff source.zip
 	-@$(RM) source.zip
