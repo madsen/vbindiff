@@ -1,5 +1,5 @@
 #--------------------------------------------------------------------------
-# $Id: Makefile,v 1.4 1996/01/18 16:53:43 Madsen Exp $
+# $Id: Makefile,v 1.5 1996/01/18 18:06:16 Madsen Exp $
 #--------------------------------------------------------------------------
 # Visual Binary Diff
 # Copyright 1995 by Christopher J. Madsen
@@ -32,7 +32,7 @@ endif
 
 all: vbindiff.exe
 
-.PHONY: all clean dist
+.PHONY: all clean dist distclean mostlyclean maintainer-clean
 
 vbindiff.exe: $(OBJECTS)
 	$(CC) $(LDFLAGS) -o vbindiff.exe vbindiff.def \
@@ -40,15 +40,33 @@ vbindiff.exe: $(OBJECTS)
 
 $(OBJECTS): getopt.h
 
-clean:
+clean distclean mostlyclean:
 	$(RM) *.o *.obj
+
+maintainer-clean:
+	$(RM) *.o *.obj *.exe
+
+# VBD_TMP is used only by `make dist'; you shouldn't need to change it:
+VBD_TMP=$(subst /,\\,$(TMP))\\vbindiff
 
 dist: all
 	@echo Did you remember to update File_ID.DIZ, \
 		ReadMe.1st, and VBinDiff.txt?
 	-$(RM) vbindiff.zip source.zip
-	zip -9 source *.cc *.c *.h *.def Makefile
-	zip -9 vbindiff *.1st *.diz *.exe VBinDiff.txt
+	@mkdir $(VBD_TMP)
+	@copy *.cc $(VBD_TMP)
+	@copy *.c $(VBD_TMP)
+	@copy *.h $(VBD_TMP)
+	@copy *.def $(VBD_TMP)
+	copy Makefile $(VBD_TMP)\\Makefile
+	copy VBinDiff.txt $(VBD_TMP)\\VBinDiff.txt
+	attrib -r $(VBD_TMP)\\*
+	zip -9mj source $(VBD_TMP)\\*
+	copy ReadMe.1st $(VBD_TMP)\\ReadMe.1st
+	copy File_ID.DIZ $(VBD_TMP)\\File_ID.DIZ
+	@copy *.exe $(VBD_TMP)
+	attrib -r $(VBD_TMP)\\*
+	zip -9mj vbindiff $(VBD_TMP)\\*
 	@zip -9j vbindiff /emx/doc/COPYING
-	@zip -0 vbindiff source.zip
-	-@$(RM) source.zip
+	@zip -0m vbindiff source.zip
+	@rmdir $(VBD_TMP)
