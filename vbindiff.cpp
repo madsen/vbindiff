@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4585 2004-10-26 00:23:00Z cjm $
+// $Id: vbindiff.cpp 4590 2005-03-08 21:20:01Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -33,13 +33,16 @@
 #include <strstream>
 using namespace std;
 
-#define __STDC__ 1
-#define __GNU_LIBRARY__
-#include "getopt.h"
-#undef __GNU_LIBRARY__
-#undef __STDC__
+#include "GetOpt/GetOpt.hpp"
 
 #include "ConWin.hpp"
+
+#define PACKAGE_VERSION "2.0"
+
+const char titleString[] =
+  "\nVBinDiff " PACKAGE_VERSION " by Christopher J. Madsen";
+
+void usage(bool showHelp=true, int exitStatus=0);
 
 //====================================================================
 // Type definitions:
@@ -680,56 +683,6 @@ bool initialize()
 } // end initialize
 
 //--------------------------------------------------------------------
-// Display license and warranty information and exit:
-
-static void license()
-{
-  cout << "\
-Visual Binary Diff\n\
-Copyright 1995-7 by Christopher J. Madsen\n\
-\n\
-This program is free software; you can redistribute it and/or\n\
-modify it under the terms of the GNU General Public License as\n\
-published by the Free Software Foundation; either version 2 of\n\
-the License, or (at your option) any later version.\n\
-\n\
-This program is distributed in the hope that it will be useful,\n\
-but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n\
-GNU General Public License for more details.\n\
-\n\
-You should have received a copy of the GNU General Public License\n\
-along with this program; if not, write to the Free Software\n\
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.\n";
-  exit(0);
-} // end license
-
-//--------------------------------------------------------------------
-// Display usage information and exit:
-//
-// Input:
-//   status:
-//     The desired exit status
-//       If status is 0 or 1, prints complete usage information
-//       If status is > 1, prints only "try --help" message
-
-static void usage(int status)
-{
-  if (status > 1)
-    cerr << "Try `" << program_name << " --help' for more information.\n";
-  else {
-    cout << "Usage: " << program_name << " FILE1 FILE2\n\
-Compare FILE1 and FILE2 byte by byte.\n\
-\n\
-Options:\n\
-      --help               display this help information and exit\n\
-      -L, --license        display license & warranty information and exit\n\
-      -V, --version        display version information and exit\n";
-  }
-  exit(status);
-} // end usage
-
-//--------------------------------------------------------------------
 // Get a command from the keyboard:
 //
 // Returns:
@@ -965,62 +918,115 @@ void handleCmd(Command cmd)
   file2.display();
 } // end handleCmd
 
-//--------------------------------------------------------------------
-int main(int argc, char* argv[])
+//====================================================================
+// Initialization and option processing:
+//====================================================================
+// Display license information and exit:
+
+bool license(GetOpt*, const GetOpt::Option*, const char*,
+             GetOpt::Connection, const char*, int*)
 {
-  // If non-zero, display usage information and exit.
-  static int show_help;
+  puts(titleString);
+  puts("\n"
+"This program is free software; you can redistribute it and/or\n"
+"modify it under the terms of the GNU General Public License as\n"
+"published by the Free Software Foundation; either version 2 of\n"
+"the License, or (at your option) any later version.\n"
+"\n"
+"This program is distributed in the hope that it will be useful,\n"
+"but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+"GNU General Public License for more details.\n"
+"\n"
+"You should have received a copy of the GNU General Public License\n"
+"along with this program; if not, write to the Free Software\n"
+"Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA."
+  );
 
-  // If non-zero, display license & warranty information and exit.
-  static int show_license;
+  exit(0);
+  return false;                 // Never happens
+} // end license
 
-  // If non-zero, print the version on standard output then exit.
-  static int show_version;
+//--------------------------------------------------------------------
+// Display version & usage information and exit:
+//
+// Input:
+//   showHelp:    True means display usage information
+//   exitStatus:  Status code to pass to exit()
 
-  static struct option const long_options[] = {
-    {"help",    no_argument, &show_help, 1},
-    {"license", no_argument, &show_license, 1},
-    {"version", no_argument, &show_version, 1},
-    {NULL, 0, NULL, 0}
+void usage(bool showHelp, int exitStatus)
+{
+  if (exitStatus > 1)
+    cerr << "Try `" << program_name << " --help' for more information.\n";
+  else {
+    cout << titleString << endl;
+
+    if (showHelp)
+      cout << "Usage: " << program_name << " FILE1 FILE2\n\
+Compare FILE1 and FILE2 byte by byte.\n\
+\n\
+Options:\n\
+      --help               display this help information and exit\n\
+      -L, --license        display license & warranty information and exit\n\
+      -V, --version        display version information and exit\n";
+  }
+
+  exit(exitStatus);
+} // end usage
+
+bool usage(GetOpt* getopt, const GetOpt::Option* option,
+           const char*, GetOpt::Connection, const char*, int*)
+{
+  usage(option->shortName == '?');
+  return false;                 // Never happens
+} // end usage
+
+//--------------------------------------------------------------------
+// Handle options:
+//
+// Input:
+//   argc, argv:  The parameters passed to main
+//
+// Output:
+//   argc, argv:
+//     Modified to list only the non-option arguments
+//     Note: argv[0] may not be the executable name
+
+void processOptions(int& argc, char**& argv)
+{
+  static const GetOpt::Option options[] =
+  {
+    { '?', "help",       NULL, 0, &usage },
+    { 0,   "license",    NULL, 0, &license },
+    { 0,   "version",    NULL, 0, &usage },
+    { 0 }
   };
 
+  GetOpt getopt(options);
+  int argi = getopt.process(argc, const_cast<const char**>(argv));
+  if (getopt.error)
+    usage(true, 1);
+
+  if (argi >= argc)
+    argc = 1;           // No arguments
+  else {
+    argc -= --argi;     // Reduce argc by number of arguments used
+    argv += argi;       // And adjust argv[1] to the next argument
+  }
+} // end processOptions
+
+//====================================================================
+// Main Program:
+//====================================================================
+int main(int argc, char* argv[])
+{
   if ((program_name = strrchr(argv[0], '\\')))
     // Isolate the filename:
     ++program_name;
   else
     program_name = argv[0];
 
-  // Parse command line options:
-  int c;
-  while ((c = getopt_long(argc, argv, "LV", long_options, (int *)0))
-	 != EOF) {
-    switch (c) {
-     case 0:
-      break;
-
-     case 'L':
-      show_license = 1;
-      break;
-
-     case 'V':
-      show_version = 1;
-      break;
-
-     default:
-      usage(2);
-    } // end switch
-  } // end while options
-
-  if (show_version) {
-      cerr << "VBinDiff $Revision: 2.0 $\n";
-      exit(0);
-  }
-
-  if (show_help)
-    usage(0);
-
-  if (show_license)
-    license();
+  processOptions(argc, argv);
 
   if (argc != 3)
     usage(1);
