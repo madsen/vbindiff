@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: FileIO.hpp 4620 2005-03-25 19:59:42Z cjm $
+// $Id: FileIO.hpp 4621 2005-03-25 20:21:26Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 typedef int      File;
-typedef fpos_t   FPos;
+typedef off_t    FPos;
 typedef ssize_t  Size;
 
 const int
@@ -48,7 +48,7 @@ inline void CloseFile(File file)
 //--------------------------------------------------------------------
 bool WriteFile(File file, const void* buffer, Size count)
 {
-  const char* ptr = buffer;
+  const char* ptr = reinterpret_cast<const char*>(buffer);
 
   while (count > 0) {
     Size bytesWritten = write(file, ptr, count);
@@ -73,7 +73,7 @@ inline Size ReadFile(File file, void* buffer, Size count)
 } // end ReadFile
 
 //--------------------------------------------------------------------
-inline FPos SeekFile(File file, FPos position, DWORD whence=SeekPos)
+inline FPos SeekFile(File file, FPos position, int whence=SeekPos)
 {
   return lseek(file, position, whence);
 } // end SeekFile
