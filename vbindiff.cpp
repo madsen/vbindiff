@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4595 2005-03-14 16:57:05Z cjm $
+// $Id: vbindiff.cpp 4596 2005-03-14 22:32:32Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 1995-7 by Christopher J. Madsen
+//   Copyright 1995-2005 by Christopher J. Madsen
 //
 //   Visual display of differences in binary files
 //
@@ -87,18 +87,12 @@ const Command  cmToggleASCII  = 12;
 const short  leftMar  = 11;     // Starting column of hex display
 const short  leftMar2 = 61;     // Starting column of ASCII display
 
-const int  numLines  = 9;       // Number of lines of each file to display
 const int  lineWidth = 16;      // Number of bytes displayed per line
-const int  bufSize   = numLines * lineWidth;
 
 const int  inWidth = 10;        // Width of input window (excluding border)
 const int  screenWidth = 80;
 
 const int  maxPath = 260;
-
-// The number of bytes to move for each possible step size:
-//   See cmmMoveByte, cmmMoveLine, cmmMovePage
-const int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 
 const char asciiDisplayTable[256] = {
    '.',  '.',  '.',  '.',  '.',  '.',  '.',  '.',
@@ -178,12 +172,19 @@ void showPrompt();
 
 class Difference;
 
+union FileBuffer
+{
+  Byte  line[1][lineWidth];
+  Byte  buffer[lineWidth];
+}; // end FileBuffer
+
 class FileDisplay
 {
   friend class Difference;
 
  protected:
   int                bufContents;
+  FileBuffer*        data;
   const Difference*  diffs;
   fstream            file;
   char               fileName[maxPath];
@@ -191,19 +192,16 @@ class FileDisplay
   ConWindow          win;
   bool               writable;
   int                yPos;
-  union {
-    Byte             line[numLines][lineWidth];
-    Byte             buffer[bufSize];
-  };
  public:
   FileDisplay();
   ~FileDisplay();
   void         init(int y, const Difference* aDiff=NULL,
                     const char* aFileName=NULL);
+  void         resize();
   void         shutDown();
   void         display();
   bool         edit(const FileDisplay* other);
-  const Byte*  getBuffer() const { return buffer; };
+  const Byte*  getBuffer() const { return data->buffer; };
   void         move(int step)    { moveTo(offset + streampos(step)); };
   void         moveTo(streampos newOffset);
   bool         setFile(const char* aFileName);
@@ -216,17 +214,16 @@ class Difference
   friend void FileDisplay::display();
 
  protected:
+  FileBuffer*         data;
   const FileDisplay*  file1;
   const FileDisplay*  file2;
   int                 numDiffs;
-  union {
-    Byte              line[numLines][lineWidth];
-    Byte              table[bufSize];
-  };
  public:
   Difference(const FileDisplay* aFile1, const FileDisplay* aFile2);
+  ~Difference();
   int  compute();
   int  getNumDiffs() const { return numDiffs; };
+  void resize();
 }; // end Difference
 
 //====================================================================
@@ -238,6 +235,14 @@ Difference   diffs(&file1, &file2);
 const char*  displayTable = asciiDisplayTable;
 const char*  program_name; // Name under which this program was invoked
 LockState    lockState = lockNeither;
+
+int  numLines  = 9;       // Number of lines of each file to display
+int  bufSize   = numLines * lineWidth;
+
+// The number of bytes to move for each possible step size:
+//   See cmmMoveByte, cmmMoveLine, cmmMovePage
+int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
+
 
 //====================================================================
 // Class Difference:
@@ -259,10 +264,17 @@ LockState    lockState = lockNeither;
 //     Pointers to the FileDisplay objects to compare
 
 Difference::Difference(const FileDisplay* aFile1, const FileDisplay* aFile2)
-: file1(aFile1),
+: data(NULL),
+  file1(aFile1),
   file2(aFile2)
 {
 } // end Difference::Difference
+
+//--------------------------------------------------------------------
+Difference::~Difference()
+{
+  delete [] reinterpret_cast<Byte*>(data);
+} // end Difference::~Difference
 
 //--------------------------------------------------------------------
 // Compute differences:
@@ -279,19 +291,19 @@ Difference::Difference(const FileDisplay* aFile1, const FileDisplay* aFile2)
 
 int Difference::compute()
 {
-  memset(table, 0, sizeof(table)); // Clear the difference table
+  memset(data->buffer, 0, bufSize); // Clear the difference table
 
   int  different = 0;
 
-  const Byte*  buf1 = file1->buffer;
-  const Byte*  buf2 = file2->buffer;
+  const Byte*  buf1 = file1->data->buffer;
+  const Byte*  buf2 = file2->data->buffer;
 
   int  size = min(file1->bufContents, file2->bufContents);
 
   int  i;
   for (i = 0; i < size; i++)
     if (*(buf1++) != *(buf2++)) {
-      table[i] = true;
+      data->buffer[i] = true;
       ++different;
     }
 
@@ -301,7 +313,7 @@ int Difference::compute()
     // One buffer has more data than the other:
     different += size - i;
     for (; i < size; i++)
-      table[i] = true;          // These bytes are only in 1 buffer
+      data->buffer[i] = true;   // These bytes are only in 1 buffer
   } else if (!size)
     return -1;                  // Both buffers are empty
 
@@ -309,6 +321,15 @@ int Difference::compute()
 
   return different;
 } // end Difference::compute
+
+//--------------------------------------------------------------------
+void Difference::resize()
+{
+  if (data)
+    delete [] reinterpret_cast<Byte*>(data);
+
+  data = reinterpret_cast<FileBuffer*>(new Byte[bufSize]);
+} // end Difference::resize
 
 //====================================================================
 // Class FileDisplay:
@@ -336,6 +357,7 @@ int Difference::compute()
 
 FileDisplay::FileDisplay()
 : bufContents(0),
+  data(NULL),
   diffs(NULL),
   offset(0),
   writable(false),
@@ -362,6 +384,8 @@ void FileDisplay::init(int y, const Difference* aDiff,
 
   win.init(0,y, screenWidth,numLines+1+(y==0), cFileWin); // FIXME
 
+  resize();
+
   if (aFileName)
     setFile(aFileName);
 } // end FileDisplay::init
@@ -373,7 +397,17 @@ FileDisplay::~FileDisplay()
 {
   shutDown();
   file.close();
+  delete [] reinterpret_cast<Byte*>(data);
 } // end FileDisplay::~FileDisplay
+
+//--------------------------------------------------------------------
+void FileDisplay::resize()
+{
+  if (data)
+    delete [] reinterpret_cast<Byte*>(data);
+
+  data = reinterpret_cast<FileBuffer*>(new Byte[bufSize]);
+} // end FileDisplay::resize
 
 //--------------------------------------------------------------------
 // Shut down the file display:
@@ -414,9 +448,9 @@ void FileDisplay::display()
         *(str++) = ' ';
         ++index;
       }
-      str += sprintf(str, "%02X ", line[i][j]);
+      str += sprintf(str, "%02X ", data->line[i][j]);
 
-      buf[index++] = displayTable[line[i][j]];
+      buf[index++] = displayTable[data->line[i][j]];
     }
     memset(buf + index, ' ', sizeof(buf) - index - 1);
     memset(str, ' ', screenWidth - (str - buf2));
@@ -426,7 +460,7 @@ void FileDisplay::display()
 
     if (diffs)
       for (j = 0; j < lineWidth; j++)
-        if (diffs->line[i][j]) {
+        if (diffs->data->line[i][j]) {
           win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileDiff,2);
           win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileDiff,1);
         }
@@ -467,7 +501,7 @@ bool FileDisplay::edit(const FileDisplay* other)
   }
 
   if (bufContents < bufSize)
-    memset(buffer + bufContents, 0, bufSize - bufContents);
+    memset(data->buffer + bufContents, 0, bufSize - bufContents);
 
   short x = 0;
   short y = 0;
@@ -510,7 +544,7 @@ bool FileDisplay::edit(const FileDisplay* other)
        short newByte = -1;
        if ((key == KEY_RETURN) && other &&
            (other->bufContents > x + y*lineWidth)) {
-         newByte = other->line[y][x]; // Copy from other file
+         newByte = other->data->line[y][x]; // Copy from other file
          hiNib = ascii; // Always advance cursor to next byte
        } else if (ascii) {
          if (isprint(key)) newByte = key;
@@ -521,9 +555,9 @@ bool FileDisplay::edit(const FileDisplay* other)
            newByte = toupper(key) - 'A' + 10;
          if (newByte >= 0)
            if (hiNib)
-             newByte = (newByte * 0x10) | (0x0F & line[y][x]);
+             newByte = (newByte * 0x10) | (0x0F & data->line[y][x]);
            else
-             newByte |= 0xF0 & line[y][x];
+             newByte |= 0xF0 & data->line[y][x];
        } // end else hex
        if (newByte >= 0) {
          changed = true;
@@ -560,7 +594,7 @@ bool FileDisplay::edit(const FileDisplay* other)
       moveTo(offset);           // Re-read buffer contents
     } else {
       file.seekp(offset);
-      file.write(reinterpret_cast<char*>(buffer), bufContents);
+      file.write(reinterpret_cast<char*>(data->buffer), bufContents);
     }
   }
   showPrompt();
@@ -587,11 +621,11 @@ void FileDisplay::setByte(short x, short y, Byte b)
     } // end if more than 1 byte past the end
    done:
     ++bufContents;
-    line[y][x] = b ^ 1;         // Make sure it's different
+    data->line[y][x] = b ^ 1;         // Make sure it's different
   } // end if past the end
 
-  if (line[y][x] != b) {
-    line[y][x] = b;
+  if (data->line[y][x] != b) {
+    data->line[y][x] = b;
     char str[3];
     sprintf(str, "%02X", b);
     win.setAttribs(cFileEdit);
@@ -638,7 +672,7 @@ void FileDisplay::moveTo(streampos newOffset)
     file.clear();
 
   file.seekg(offset);
-  file.read(reinterpret_cast<char*>(buffer), bufSize);
+  file.read(reinterpret_cast<char*>(data->buffer), bufSize);
   bufContents = file.gcount();
 } // end FileDisplay::moveTo
 
@@ -675,7 +709,7 @@ bool FileDisplay::setFile(const char* aFileName)
     return false;
 
   offset = 0;
-  file.read(reinterpret_cast<char*>(buffer), bufSize);
+  file.read(reinterpret_cast<char*>(data->buffer), bufSize);
   bufContents = file.gcount();
 
   return true;
@@ -757,6 +791,7 @@ bool initialize()
   promptWin.init(0,21, screenWidth,4, cBackground);
   showPrompt();
 
+  diffs.resize();
   file1.init(0,&diffs);
   file2.init(11,&diffs);
 
