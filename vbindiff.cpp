@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4608 2005-03-21 21:36:38Z cjm $
+// $Id: vbindiff.cpp 4609 2005-03-21 22:12:40Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -899,10 +899,25 @@ void showPrompt()
 {
   promptWin.clear();
   promptWin.border();
+
+#ifdef WIN32_CONSOLE
+  promptWin.put(1,1, "Arrow keys move              "
+                "RET next difference  ESC quit  ALT  freeze top");
+  promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
+                "G goto position      Q quit  CTRL freeze bottom");
+  const short
+    topBotLength = 4,
+    topLength    = 15;
+#else // curses
   promptWin.put(1,1, "Arrow keys move              "
                 "RET next difference  ESC quit  T move top");
   promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
                 "G goto position      Q quit  B move bottom");
+  const short
+    topBotLength = 1,
+    topLength    = 10;
+#endif
+
   promptWin.putAttribs( 1,1, cPromptKey, 10);
   promptWin.putAttribs(30,1, cPromptKey, 3);
   promptWin.putAttribs(51,1, cPromptKey, 3);
@@ -912,11 +927,11 @@ void showPrompt()
   promptWin.putAttribs(53,2, cPromptKey, 1);
   if (singleFile) {
     // Erase "move top" & "move bottom":
-    promptWin.putChar(61,1, ' ', 10);
-    promptWin.putChar(61,2, ' ', 13);
+    promptWin.putChar(61,1, ' ', topLength);
+    promptWin.putChar(61,2, ' ', topLength + 3);
   } else {
-    promptWin.putAttribs(61,1, cPromptKey, 1);
-    promptWin.putAttribs(61,2, cPromptKey, 1);
+    promptWin.putAttribs(61,1, cPromptKey, topBotLength);
+    promptWin.putAttribs(61,2, cPromptKey, topBotLength);
   }
   displayCharacterSet();
   displayLockState();
@@ -977,7 +992,7 @@ Command getCommand()
     ConWindow::readKey(e);
 
     switch (toupper(e.uChar.AsciiChar)) {
-     case 0x0D:               // Enter
+     case KEY_RETURN:           // Enter
       cmd = cmNextDiff;
       break;
 
@@ -1000,7 +1015,7 @@ Command getCommand()
       cmd = cmgGoto|cmgGotoTop;
       break;
 
-     case 0x1B:               // Esc
+     case KEY_ESCAPE:         // Esc
      case 0x03:               // Ctrl+C
      case 'Q':
       cmd = cmQuit;
@@ -1009,82 +1024,26 @@ Command getCommand()
      case 'C':  cmd = cmToggleASCII;  break;
 
      default:                 // Try extended codes
-      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED)) {
-        switch (e.wVirtualKeyCode) {
-         case VK_DOWN:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
-          break;
-         case VK_RIGHT:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveByte|cmmMoveForward;
-          break;
-         case VK_NEXT:
-          cmd = cmmMove|cmmMoveBottom|cmmMovePage|cmmMoveForward;
-          break;
-         case VK_LEFT:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveByte;
-          break;
-         case VK_UP:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveLine;
-          break;
-         case VK_PRIOR:
-          cmd = cmmMove|cmmMoveBottom|cmmMovePage;
-          break;
-         case VK_HOME:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveAll;
-          break;
-        } // end switch alt virtual key code
-      } else if (e.dwControlKeyState & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED)) {
-        switch (e.wVirtualKeyCode) {
-         case VK_DOWN:
-          cmd = cmmMove|cmmMoveTop|cmmMoveLine|cmmMoveForward;
-          break;
-         case VK_RIGHT:
-          cmd = cmmMove|cmmMoveTop|cmmMoveByte|cmmMoveForward;
-          break;
-         case VK_NEXT:
-          cmd = cmmMove|cmmMoveTop|cmmMovePage|cmmMoveForward;
-          break;
-         case VK_LEFT:
-          cmd = cmmMove|cmmMoveTop|cmmMoveByte;
-          break;
-         case VK_UP:
-          cmd = cmmMove|cmmMoveTop|cmmMoveLine;
-          break;
-         case VK_PRIOR:
-          cmd = cmmMove|cmmMoveTop|cmmMovePage;
-          break;
-         case VK_HOME:
-          cmd = cmmMove|cmmMoveTop|cmmMoveAll;
-          break;
-        } // end switch control virtual key code
-      } else {
-        switch (e.wVirtualKeyCode) {
-         case VK_DOWN:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveLine|cmmMoveForward;
-          break;
-         case VK_RIGHT:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveByte|cmmMoveForward;
-          break;
-         case VK_NEXT:
-          cmd = cmmMove|cmmMoveBoth|cmmMovePage|cmmMoveForward;
-          break;
-         case VK_LEFT:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveByte;
-          break;
-         case VK_UP:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveLine;
-          break;
-         case VK_PRIOR:
-          cmd = cmmMove|cmmMoveBoth|cmmMovePage;
-          break;
-         case VK_HOME:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
-          break;
-        } // end switch virtual key code
-      } // end else not Alt or Ctrl
+      switch (e.wVirtualKeyCode) {
+       case VK_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
+       case VK_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
+       case VK_NEXT:   cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
+       case VK_END:    cmd = cmmMove|cmmMoveAll|cmmMoveForward;   break;
+       case VK_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
+       case VK_UP:     cmd = cmmMove|cmmMoveLine;                 break;
+       case VK_PRIOR:  cmd = cmmMove|cmmMovePage;                 break;
+       case VK_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
+      } // end switch virtual key code
       break;
     } // end switch ASCII code
   } // end while no command
+
+  if (cmd & cmmMove) {
+    if ((e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED)) == 0)
+      cmd |= cmmMoveTop;
+    if ((e.dwControlKeyState & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED)) == 0)
+      cmd |= cmmMoveBottom;
+  } // end if move command
 
   return cmd;
 } // end getCommand
@@ -1144,7 +1103,7 @@ Command getCommand()
 
   return cmd;
 } // end getCommand
-#endif
+#endif  // end else curses interface
 
 //--------------------------------------------------------------------
 // Get a file position:
