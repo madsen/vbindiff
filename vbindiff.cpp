@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4597 2005-03-15 19:45:51Z cjm $
+// $Id: vbindiff.cpp 4598 2005-03-15 22:11:20Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -237,6 +237,7 @@ Difference   diffs(&file1, &file2);
 const char*  displayTable = asciiDisplayTable;
 const char*  program_name; // Name under which this program was invoked
 LockState    lockState = lockNeither;
+bool         singleFile = false;
 
 int  numLines  = 9;       // Number of lines of each file to display
 int  bufSize   = numLines * lineWidth;
@@ -294,6 +295,10 @@ Difference::~Difference()
 
 int Difference::compute()
 {
+  if (singleFile)
+    // We return 1 so that cmNextDiff won't keep searching:
+    return (file1->bufContents ? 1 : -1);
+
   memset(data->buffer, 0, bufSize); // Clear the difference table
 
   int  different = 0;
@@ -328,6 +333,8 @@ int Difference::compute()
 //--------------------------------------------------------------------
 void Difference::resize()
 {
+  if (singleFile) return;
+
   if (data)
     delete [] reinterpret_cast<Byte*>(data);
 
@@ -428,6 +435,8 @@ void FileDisplay::shutDown()
 
 void FileDisplay::display()
 {
+  if (!fileName[0]) return;
+
   streampos  lineOffset = offset;
 
   short i,j,index,lineLength;
@@ -469,7 +478,7 @@ void FileDisplay::display()
           win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileDiff,1);
         }
     lineOffset += lineWidth;
-  }
+  } // end for i up to numLines
 
   win.update();
 } // end FileDisplay::display
@@ -664,6 +673,8 @@ void FileDisplay::setByte(short x, short y, Byte b)
 
 void FileDisplay::moveTo(streampos newOffset)
 {
+  if (!fileName[0]) return;     // No file
+
   offset = newOffset;
 
   if (offset < 0)
@@ -739,9 +750,14 @@ void calcScreenLayout(bool resize = true)
     exitMsg(2, err.str().c_str());
   }
 
-  numLines = screenY - promptHeight - 2;
-  linesBetween = numLines % 2;
-  numLines = (numLines - linesBetween) / 2;
+  numLines = screenY - promptHeight - (singleFile ? 1 : 2);
+
+  if (singleFile)
+    linesBetween = 0;
+  else {
+    linesBetween = numLines % 2;
+    numLines = (numLines - linesBetween) / 2;
+  }
 
   bufSize = numLines * lineWidth;
 
@@ -753,6 +769,8 @@ void calcScreenLayout(bool resize = true)
 //--------------------------------------------------------------------
 void displayLockState()
 {
+  if (singleFile) return;
+
   promptWin.putAttribs(63,1,
                        ((lockState == lockBottom) ? cLocked : cBackground),
                        8);
@@ -838,13 +856,18 @@ bool initialize()
   inWin.setAttribs(cPromptWin);
   inWin.hide();
 
-  promptWin.init(0,numLines * 2 + linesBetween + 2,
-                 screenWidth,promptHeight, cBackground);
+  int y;
+  if (singleFile) y = numLines + 1;
+  else            y = numLines * 2 + linesBetween + 2;
+
+  promptWin.init(0,y, screenWidth,promptHeight, cBackground);
   showPrompt();
 
-  diffs.resize();
-  file1.init(0, &diffs);
-  file2.init(numLines + linesBetween + 1, &diffs);
+  if (!singleFile) diffs.resize();
+
+  file1.init(0, (singleFile ? NULL : &diffs));
+
+  if (!singleFile) file2.init(numLines + linesBetween + 1, &diffs);
 
   return true;
 } // end initialize
@@ -886,7 +909,7 @@ Command getCommand()
       cmd = cmQuit;
       break;
 
-     case 'A':  cmd = cmToggleASCII;  break;
+     case 'C':  cmd = cmToggleASCII;  break;
 
      case 'B':  cmd = cmUseBottom;    break;
      case 'T':  cmd = cmUseTop;       break;
@@ -1028,7 +1051,7 @@ void handleCmd(Command cmd)
                     : asciiDisplayTable );
   }
   else if (cmd == cmEditTop)
-    file1.edit(&file2);
+    file1.edit(singleFile ? NULL : &file2);
   else if (cmd == cmEditBottom)
     file2.edit(&file1);
 
@@ -1152,13 +1175,14 @@ int main(int argc, char* argv[])
 
   processOptions(argc, argv);
 
-  if (argc != 3)
+  if (argc < 2 || argc > 3)
     usage(1);
 
   cout << "\
 VBinDiff " PACKAGE_VERSION ", Copyright 1995-2005 Christopher J. Madsen\n\
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
+  singleFile = (argc == 2);
   if (!initialize()) {
     cerr << '\n' << program_name << ": Unable to initialize windows\n";
     return 1;
@@ -1168,18 +1192,21 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!file1.setFile(argv[1]))
     errMsg << "Unable to open " << argv[1];
-  else if (!file2.setFile(argv[2]))
+  else if (!singleFile && !file2.setFile(argv[2]))
     errMsg << "Unable to open " << argv[2];
-  else {
-    diffs.compute();
 
-    file1.display();
-    file2.display();
+  string error(errMsg.str());
+  if (error.length())
+    exitMsg(1, error.c_str());
 
-    Command  cmd;
-    while ((cmd = getCommand()) != cmQuit)
-      handleCmd(cmd);
-  } // end else files opened successfully
+  diffs.compute();
+
+  file1.display();
+  file2.display();
+
+  Command  cmd;
+  while ((cmd = getCommand()) != cmQuit)
+    handleCmd(cmd);
 
   file1.shutDown();
   file2.shutDown();
@@ -1188,10 +1215,5 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   ConWindow::shutdown();
 
-  string error(errMsg.str());
-  if (error.length()) {
-    cerr << '\n' << program_name << ": " << error << endl;
-    return 1;
-  }
   return 0;
 } // end main
