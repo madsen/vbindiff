@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4619 2005-03-25 17:45:09Z cjm $
+// $Id: vbindiff.cpp 4620 2005-03-25 19:59:42Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -25,19 +25,18 @@
 #include "config.h"
 
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <algorithm>
 #include <iostream>
-#include <fstream>
 #include <sstream>
 using namespace std;
 
 #include "GetOpt/GetOpt.hpp"
 
 #include "ConWin.hpp"
+#include "FileIO.hpp"
 
 const char titleString[] =
   "\nVBinDiff " PACKAGE_VERSION " by Christopher J. Madsen";
@@ -123,9 +122,9 @@ class FileDisplay
   int                bufContents;
   FileBuffer*        data;
   const Difference*  diffs;
-  fstream            file;
+  File               file;
   char               fileName[maxPath];
-  streampos          offset;
+  FPos               offset;
   ConWindow          win;
   bool               writable;
   int                yPos;
@@ -139,8 +138,8 @@ class FileDisplay
   void         display();
   bool         edit(const FileDisplay* other);
   const Byte*  getBuffer() const { return data->buffer; };
-  void         move(int step)    { moveTo(offset + streampos(step)); };
-  void         moveTo(streampos newOffset);
+  void         move(int step)    { moveTo(offset + step); };
+  void         moveTo(FPos newOffset);
   bool         moveTo(Byte* searchFor, int searchLen);
   void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
@@ -344,7 +343,7 @@ void FileDisplay::init(int y, const Difference* aDiff,
 FileDisplay::~FileDisplay()
 {
   shutDown();
-  file.close();
+  CloseFile(file);
   delete [] reinterpret_cast<Byte*>(data);
 } // end FileDisplay::~FileDisplay
 
@@ -376,7 +375,7 @@ void FileDisplay::display()
 {
   if (!fileName[0]) return;
 
-  streampos  lineOffset = offset;
+  FPos  lineOffset = offset;
 
   short i,j,index,lineLength;
   char  buf[lineWidth + lineWidth/8 + 1];
@@ -435,18 +434,11 @@ bool FileDisplay::edit(const FileDisplay* other)
     return false;               // You must not be completely past EOF
 
   if (!writable) {
-    file.clear();
-    file.close();
-    file.open(fileName, ios::in|ios::out|ios::binary);
+    File w = OpenFile(fileName, true);
+    if (w == InvalidFile) return false;
+    CloseFile(file);
+    file = w;
     writable = true;
-    if (!file) {
-      writable = false;
-      file.clear();
-      file.open(fileName, ios::in|ios::binary);
-      if (!file)
-        exitMsg(1, (string("Unable to open ") + fileName + " for writing").c_str());
-      return false;
-    }
   }
 
   if (bufContents < bufSize)
@@ -546,8 +538,8 @@ bool FileDisplay::edit(const FileDisplay* other)
       changed = false;
       moveTo(offset);           // Re-read buffer contents
     } else {
-      file.seekp(offset);
-      file.write(reinterpret_cast<char*>(data->buffer), bufContents);
+      SeekFile(file, offset);
+      WriteFile(file, data->buffer, bufContents);
     }
   }
   showPrompt();
@@ -614,7 +606,7 @@ void FileDisplay::setByte(short x, short y, Byte b)
 //   newOffset:
 //     The new position of the file
 
-void FileDisplay::moveTo(streampos newOffset)
+void FileDisplay::moveTo(FPos newOffset)
 {
   if (!fileName[0]) return;     // No file
 
@@ -623,12 +615,8 @@ void FileDisplay::moveTo(streampos newOffset)
   if (offset < 0)
     offset = 0;
 
-  if (file.fail())
-    file.clear();
-
-  file.seekg(offset);
-  file.read(reinterpret_cast<char*>(data->buffer), bufSize);
-  bufContents = file.gcount();
+  SeekFile(file, offset);
+  bufContents = ReadFile(file, data->buffer, bufSize);
 } // end FileDisplay::moveTo
 
 //--------------------------------------------------------------------
@@ -676,14 +664,11 @@ bool FileDisplay::moveTo(Byte* searchFor, int searchLen)
 
   char *const  readAt = reinterpret_cast<char*>(searchBuf) + blockSize;
 
-  if (file.fail())
-    file.clear();
+  FPos  newPos = offset + 1;
 
-  streamoff  delta = 1;
-
-  file.seekg(offset + delta);
-  file.read(reinterpret_cast<char*>(searchBuf), blockSize * 2);
-  int stopAt = file.gcount() - moveLength;
+  SeekFile(file, newPos);
+  Size bytesRead = ReadFile(file, searchBuf, blockSize * 2);
+  int stopAt = bytesRead - moveLength;
 
   // Start the search:
   i = 0;
@@ -702,11 +687,11 @@ bool FileDisplay::moveTo(Byte* searchFor, int searchLen)
       goto done;
     } // Nothing more to read
 
-    delta += blockSize;
+    newPos += blockSize;
     i -= blockSize;
     memcpy(copyTo, copyFrom, moveLength);
-    file.read(readAt, blockSize);
-    stopAt = file.gcount() + blockSize - moveLength;
+    bytesRead = ReadFile(file, readAt, blockSize);
+    stopAt = bytesRead + blockSize - moveLength;
   } // end forever
 
  done:
@@ -714,7 +699,7 @@ bool FileDisplay::moveTo(Byte* searchFor, int searchLen)
 
   if (i < 0) return false;      // No match
 
-  moveTo(offset + (delta + i));
+  moveTo(newPos + i);
 
   return true;
 } // end FileDisplay::moveTo
@@ -729,21 +714,15 @@ void FileDisplay::moveToEnd(FileDisplay* other)
 {
   if (!fileName[0]) return;     // No file
 
-  if (file.fail())
-    file.clear();
-
-  streampos  end = file.rdbuf()->pubseekoff(0, ios::end);
-  streamoff  diff = 0;
+  FPos  end = SeekFile(file, 0, SeekEnd);
+  FPos  diff = 0;
 
   if (other) {
-    if (other->file.fail())
-      other->file.clear();
-
     // If the files aren't currently at the same position,
     // we want to keep them offset by the same amount:
     diff = other->offset - offset;
 
-    end = min(end, other->file.rdbuf()->pubseekoff(0, ios::end) - diff);
+    end = min(end, SeekFile(other->file, 0, SeekEnd) - diff);
   } // end if moving other file too
 
   end -= steps[cmmMovePage];
@@ -764,7 +743,7 @@ void FileDisplay::moveToEnd(FileDisplay* other)
 //
 // Returns:
 //   True:   Operation successful
-//   False:  Unable to open file (error number in errno)
+//   False:  Unable to open file (call ErrorMsg for error message)
 
 bool FileDisplay::setFile(const char* aFileName)
 {
@@ -775,19 +754,15 @@ bool FileDisplay::setFile(const char* aFileName)
   win.putAttribs(0,0, cFileName, screenWidth);
   win.update();                 // FIXME
 
-  if (file.is_open())
-    file.close();
   bufContents = 0;
-  file.clear();
-  file.open(fileName, ios::in|ios::binary);
+  file = OpenFile(fileName);
   writable = false;
 
-  if (!file)
+  if (file == InvalidFile)
     return false;
 
   offset = 0;
-  file.read(reinterpret_cast<char*>(data->buffer), bufSize);
-  bufContents = file.gcount();
+  bufContents = ReadFile(file, data->buffer, bufSize);
 
   return true;
 } // end FileDisplay::setFile
@@ -1212,7 +1187,7 @@ void gotoPosition(Command cmd)
   if (!buf[0])
     return;
 
-  streampos  pos = strtoul(buf, NULL, 16);
+  FPos  pos = strtoul(buf, NULL, 16);
 
   if (cmd & cmgGotoTop)
     file1.moveTo(pos);
@@ -1457,11 +1432,11 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
     ostringstream errMsg;
 
     if (!file1.setFile(argv[1])) {
-      const char* errStr = strerror(errno);
+      const char* errStr = ErrorMsg();
       errMsg << "Unable to open " << argv[1] << ": " << errStr;
     }
     else if (!singleFile && !file2.setFile(argv[2])) {
-      const char* errStr = strerror(errno);
+      const char* errStr = ErrorMsg();
       errMsg << "Unable to open " << argv[2] << ": " << errStr;
     }
     string error(errMsg.str());
