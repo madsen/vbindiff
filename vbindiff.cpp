@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4610 2005-03-22 06:31:17Z cjm $
+// $Id: vbindiff.cpp 4611 2005-03-22 15:44:32Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -738,19 +738,24 @@ void FileDisplay::moveToEnd(FileDisplay* other)
     file.clear();
 
   streampos  end = file.rdbuf()->pubseekoff(0, ios::end);
+  streamoff  diff = 0;
 
   if (other) {
     if (other->file.fail())
       other->file.clear();
 
-    end = min(end, other->file.rdbuf()->pubseekoff(0, ios::end));
+    // If the files aren't currently at the same position,
+    // we want to keep them offset by the same amount:
+    diff = other->offset - offset;
+
+    end = min(end, other->file.rdbuf()->pubseekoff(0, ios::end) - diff);
   } // end if moving other file too
 
   end -= steps[cmmMovePage];
   end -= end % 0x10;
 
   moveTo(end);
-  if (other) other->moveTo(end);
+  if (other) other->moveTo(end + diff);
 } // end FileDisplay::moveToEnd
 
 //--------------------------------------------------------------------
@@ -1408,6 +1413,5 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 } // end main
 
 // Local Variables:
-// cjm-related-file: "ConWin.hpp"
 //     c-file-style: "cjm"
 // End:
