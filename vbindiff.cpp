@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp,v 2.0 1997/10/13 22:49:43 Madsen Exp $
+// $Id: vbindiff.cpp 4585 2004-10-26 00:23:00Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -59,6 +59,7 @@ const Byte  cPromptBdr  = F_WHITE|B_BLUE|FOREGROUND_INTENSITY;
 const Byte  cFileName   = F_BLACK|B_WHITE;
 const Byte  cFileWin    = F_WHITE|B_BLUE;
 const Byte  cFileDiff   = F_RED|B_BLUE|FOREGROUND_INTENSITY;
+const Byte  cFileEdit   = F_YELLOW|B_BLUE|FOREGROUND_INTENSITY;
 
 const Command  cmmMove        = 0x80;
 
@@ -82,6 +83,11 @@ const Command  cmgGotoBoth    = cmgGotoTop|cmgGotoBottom;
 const Command  cmNothing      = 0;
 const Command  cmNextDiff     = 1;
 const Command  cmQuit         = 2;
+const Command  cmEditTop      = 8;
+const Command  cmEditBottom   = 9;
+
+const short  leftMar  = 11;     // Starting column of hex display
+const short  leftMar2 = 61;     // Starting column of ASCII display
 
 const int  numLines  = 9;       // Number of lines of each file to display
 const int  lineWidth = 16;      // Number of bytes displayed per line
@@ -99,6 +105,9 @@ const int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 //====================================================================
 // Class Declarations:
 
+void showEditPrompt();
+void showPrompt();
+
 class Difference;
 
 class FileDisplay
@@ -108,10 +117,11 @@ class FileDisplay
  protected:
   int                bufContents;
   const Difference*  diffs;
-  ifstream           file;
+  fstream            file;
   char               fileName[maxPath];
   streampos          offset;
   ConWindow          win;
+  bool               writable;
   int                yPos;
   union {
     Byte             line[numLines][lineWidth];
@@ -124,10 +134,13 @@ class FileDisplay
                     const char* aFileName=NULL);
   void         shutDown();
   void         display();
+  bool         edit(const FileDisplay* other);
   const Byte*  getBuffer() const { return buffer; };
   void         move(int step)    { moveTo(offset + streampos(step)); };
   void         moveTo(streampos newOffset);
   bool         setFile(const char* aFileName);
+ protected:
+  void  setByte(short x, short y, Byte b);
 }; // end FileDisplay
 
 class Difference
@@ -255,6 +268,7 @@ FileDisplay::FileDisplay()
 : bufContents(0),
   diffs(NULL),
   offset(0),
+  writable(false),
   yPos(0)
 {
   fileName[0] = '\0';
@@ -305,9 +319,6 @@ void FileDisplay::shutDown()
 
 void FileDisplay::display()
 {
-  const short  leftMar  = 11;     // Starting column of hex display
-  const short  leftMar2 = 61;     // Starting column of ASCII display
-
   streampos  lineOffset = offset;
 
   short i,j,index,lineLength;
@@ -353,6 +364,173 @@ void FileDisplay::display()
 
   win.update();
 } // end FileDisplay::display
+
+//--------------------------------------------------------------------
+// Edit the file:
+//
+// Returns:
+//   true:  File changed
+//   false:  File did not change
+
+bool FileDisplay::edit(const FileDisplay* other)
+{
+  if (!bufContents && offset)
+    return false;               // You must not be completely past EOF
+
+  if (!writable) {
+    file.clear();
+    file.close();
+    file.open(fileName, ios::in|ios::out|ios::binary);
+    writable = true;
+    if (!file) {
+      writable = false;
+      file.clear();
+      file.open(fileName, ios::in|ios::binary);
+      if (!file) {
+        ConWindow::shutdown();
+        cerr << "Unable to open " << fileName << " for writing\n";
+        exit(1);
+      }
+      return false;
+    }
+  }
+
+  if (bufContents < bufSize)
+    memset(buffer + bufContents, 0, bufSize - bufContents);
+
+  short x = 0;
+  short y = 0;
+  bool  hiNib = true;
+  bool  ascii = false;
+  bool  changed = false;
+  KEY_EVENT_RECORD e;
+
+  showEditPrompt();
+  win.setCursor(leftMar,1);
+  ConWindow::showCursor();
+
+  for (;;) {
+    win.setCursor((ascii ? leftMar2 + x : leftMar + 3*x + !hiNib) + (x / 8),
+                  y+1);
+    ConWindow::readKey(e);
+
+    switch (e.wVirtualKeyCode) {
+     case VK_ESCAPE: goto done;
+     case VK_TAB:
+      hiNib = true;
+      ascii = !ascii;
+      break;
+
+     case VK_BACK:
+     case VK_LEFT:
+      if (!hiNib)
+        hiNib = true;
+      else {
+        if (!ascii) hiNib = false;
+        if (--x < 0) x = lineWidth-1;
+      }
+      if (hiNib || (x < lineWidth-1))
+        break;
+      // else fall thru
+     case VK_UP:   if (--y < 0) y = numLines-1; break;
+
+     default: {
+       short newByte = -1;
+       if ((e.wVirtualKeyCode == VK_RETURN) && other &&
+           (other->bufContents > x + y*lineWidth)) {
+         newByte = other->line[y][x]; // Copy from other file
+         hiNib = ascii; // Always advance cursor to next byte
+       } else if (ascii) {
+         if (isprint(e.uChar.AsciiChar)) newByte = e.uChar.AsciiChar;
+       } else { // hex
+         if (isdigit(e.uChar.AsciiChar))
+           newByte = e.uChar.AsciiChar - '0';
+         else if (isxdigit(e.uChar.AsciiChar))
+           newByte = toupper(e.uChar.AsciiChar) - 'A' + 10;
+         if (newByte >= 0)
+           if (hiNib)
+             newByte = (newByte * 0x10) | (0x0F & line[y][x]);
+           else
+             newByte |= 0xF0 & line[y][x];
+       } // end else hex
+       if (newByte >= 0) {
+         changed = true;
+         setByte(x,y,newByte);
+       } else
+         break;
+     } // end default and fall thru
+     case VK_RIGHT:
+      if (hiNib && !ascii)
+        hiNib = false;
+      else {
+        hiNib = true;
+        if (++x >= lineWidth) x = 0;
+      }
+      if (x || !hiNib)
+        break;
+      // else fall thru
+     case VK_DOWN: if (++y >= numLines) y = 0;  break;
+
+    } // end switch
+
+  } // end forever
+
+ done:
+  if (changed) {
+    promptWin.clear();
+    promptWin.boxSingle(0,0, screenWidth,4);
+    promptWin.put(30,1,"Save changes (Y/N):");
+    promptWin.update();
+    promptWin.setCursor(50,1);
+    ConWindow::readKey(e);
+    if (toupper(e.uChar.AsciiChar) != 'Y') {
+      changed = false;
+      moveTo(offset);           // Re-read buffer contents
+    } else {
+      file.seekp(offset);
+      file.write(reinterpret_cast<char*>(buffer), bufContents);
+    }
+  }
+  showPrompt();
+  ConWindow::hideCursor();
+  return changed;
+} // end FileDisplay::edit
+
+//--------------------------------------------------------------------
+void FileDisplay::setByte(short x, short y, Byte b)
+{
+  if (x + y*lineWidth >= bufContents) {
+    if (x + y*lineWidth > bufContents) {
+      short y1 = bufContents / lineWidth;
+      short x1 = bufContents % lineWidth;
+      while (y1 <= numLines) {
+        while (x1 < lineWidth) {
+          if ((x1 == x) && (y1 == y)) goto done;
+          setByte(x1,y1,0);
+          ++x1;
+        }
+        x1 = 0;
+        ++y1;
+      } // end while y1
+    } // end if more than 1 byte past the end
+   done:
+    ++bufContents;
+    line[y][x] = b ^ 1;         // Make sure it's different
+  } // end if past the end
+
+  if (line[y][x] != b) {
+    line[y][x] = b;
+    char str[3];
+    sprintf(str, "%02X", b);
+    win.setAttribs(cFileEdit);
+    win.put(leftMar + 3*x + (x / 8), y+1, str);
+    str[0] = (b >= ' ') ? b : '.';
+    str[1] = '\0';
+    win.put(leftMar2 + x + (x / 8), y+1, str);
+    win.setAttribs(cFileWin);
+    win.update();
+  }
+} // end FileDisplay::setByte
 
 //--------------------------------------------------------------------
 // Change the file position:
@@ -417,7 +595,9 @@ bool FileDisplay::setFile(const char* aFileName)
   if (file.is_open())
     file.close();
   bufContents = 0;
+  file.clear();
   file.open(fileName, ios::in|ios::binary);
+  writable = false;
 
   if (!file)
     return false;
@@ -431,6 +611,46 @@ bool FileDisplay::setFile(const char* aFileName)
 
 //====================================================================
 // Main Program:
+//--------------------------------------------------------------------
+// Display prompt window for editing:
+void showEditPrompt()
+{
+  promptWin.clear();
+  promptWin.boxSingle(0,0, screenWidth,4);
+  promptWin.put(9,1, "\x1B\x18\x19\x1A move cursor        TAB hex\x1B\x1A"
+                "ASCII       ESC done");
+  promptWin.put(25,2, "RET copy byte from other file");
+  promptWin.putAttribs( 9,1, cPromptKey, 4);
+  promptWin.putAttribs(33,1, cPromptKey, 3);
+  promptWin.putAttribs(54,1, cPromptKey, 3);
+  promptWin.putAttribs(25,2, cPromptKey, 3);
+  promptWin.update();
+} // end showEditPrompt
+
+//--------------------------------------------------------------------
+// Display prompt window:
+
+void showPrompt()
+{
+  promptWin.clear();
+  promptWin.boxSingle(0,0, screenWidth,4);
+  promptWin.put(1,1, "\x1A fwd 1 byte   \x19 fwd 1 line"
+                "  RET next difference  ESC quit  ALT  freeze top");
+  promptWin.put(1,2, "\x1B back 1 byte  \x18 back 1 line   G goto position"
+                "      Q quit  CTRL freeze bottom");
+  promptWin.putAttribs( 1,1, cPromptKey, 1);
+  promptWin.putAttribs(16,1, cPromptKey, 1);
+  promptWin.putAttribs(30,1, cPromptKey, 3);
+  promptWin.putAttribs(51,1, cPromptKey, 3);
+  promptWin.putAttribs(61,1, cPromptKey, 4);
+  promptWin.putAttribs( 1,2, cPromptKey, 1);
+  promptWin.putAttribs(16,2, cPromptKey, 1);
+  promptWin.putAttribs(32,2, cPromptKey, 1);
+  promptWin.putAttribs(53,2, cPromptKey, 1);
+  promptWin.putAttribs(61,2, cPromptKey, 4);
+  promptWin.update();
+} // end showPrompt
+
 //--------------------------------------------------------------------
 // Initialize program:
 //
@@ -451,22 +671,7 @@ bool initialize()
   inWin.setAttribs(cPromptWin);
 
   promptWin.init(0,21, screenWidth,4, F_WHITE|B_BLUE);
-  promptWin.boxSingle(0,0, screenWidth,4);
-  promptWin.put(1,1, "\x1A fwd 1 byte   \x19 fwd 1 line"
-                "  RET next difference  ESC quit  ALT  freeze top");
-  promptWin.put(1,2, "\x1B back 1 byte  \x18 back 1 line   G goto position"
-                "      Q quit  CTRL freeze bottom");
-  promptWin.putAttribs( 1,1, cPromptKey, 1);
-  promptWin.putAttribs(16,1, cPromptKey, 1);
-  promptWin.putAttribs(30,1, cPromptKey, 3);
-  promptWin.putAttribs(51,1, cPromptKey, 3);
-  promptWin.putAttribs(61,1, cPromptKey, 4);
-  promptWin.putAttribs( 1,2, cPromptKey, 1);
-  promptWin.putAttribs(16,2, cPromptKey, 1);
-  promptWin.putAttribs(32,2, cPromptKey, 1);
-  promptWin.putAttribs(53,2, cPromptKey, 1);
-  promptWin.putAttribs(61,2, cPromptKey, 4);
-  promptWin.update();
+  showPrompt();
 
   file1.init(0,&diffs);
   file2.init(11,&diffs);
@@ -541,6 +746,14 @@ Command getCommand()
     switch (toupper(e.uChar.AsciiChar)) {
      case 0x0D:               // Enter
       cmd = cmNextDiff;
+      break;
+
+     case 0x05:                 // Ctrl+E
+     case 'E':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmEditBottom;
+      else
+        cmd = cmEditTop;
       break;
 
      case 'G':
@@ -737,6 +950,10 @@ void handleCmd(Command cmd)
       file2.move(bufSize);
     } while (!diffs.compute());
   } // end else if cmNextDiff
+  else if (cmd == cmEditTop)
+    file1.edit(&file2);
+  else if (cmd == cmEditBottom)
+    file2.edit(&file1);
 
   // Make sure we haven't gone past the end of both files:
   while (diffs.compute() < 0) {

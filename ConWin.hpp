@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp,v 2.0 1997/10/13 22:51:56 Madsen Exp $
+// $Id: ConWin.hpp 4585 2004-10-26 00:23:00Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -16,6 +16,7 @@
 #define F_BLACK 0
 #define F_RED   FOREGROUND_RED
 #define F_WHITE (FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE)
+#define F_YELLOW (FOREGROUND_GREEN|FOREGROUND_RED)
 #define B_BLUE  BACKGROUND_BLUE
 #define B_WHITE (BACKGROUND_RED|BACKGROUND_GREEN|BACKGROUND_BLUE)
 
