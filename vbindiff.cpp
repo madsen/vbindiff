@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.8 1997/10/06 17:26:57 Madsen Exp $
+// $Id: vbindiff.cpp,v 2.0 1997/10/13 22:49:43 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 1995, 1996 by Christopher J. Madsen
+//   Copyright 1995-7 by Christopher J. Madsen
 //
 //   Visual display of differences in binary files
 //
@@ -22,16 +22,24 @@
 //   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 //--------------------------------------------------------------------
 
+#include "StdAfx.h"
+
 #include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fstream.h>
-#include <strstream.h>
-#include <sys/winmgr.h>
-#include <sys/kbdscan.h>
 
+#include <iostream>
+#include <fstream>
+#include <strstream>
+using namespace std;
+
+#define __STDC__ 1
+#define __GNU_LIBRARY__
 #include "getopt.h"
+#undef __GNU_LIBRARY__
+#undef __STDC__
+
+#include "ConWin.hpp"
 
 //====================================================================
 // Type definitions:
@@ -46,11 +54,11 @@ typedef Byte  Command;
 
 const Byte  cBackground = F_WHITE|B_BLUE;
 const Byte  cPromptWin  = F_WHITE|B_BLUE;
-const Byte  cPromptKey  = F_WHITE|B_BLUE|INTENSITY;
-const Byte  cPromptBdr  = F_WHITE|B_BLUE|INTENSITY;
+const Byte  cPromptKey  = F_WHITE|B_BLUE|FOREGROUND_INTENSITY;
+const Byte  cPromptBdr  = F_WHITE|B_BLUE|FOREGROUND_INTENSITY;
 const Byte  cFileName   = F_BLACK|B_WHITE;
 const Byte  cFileWin    = F_WHITE|B_BLUE;
-const Byte  cFileDiff   = F_RED|B_BLUE|INTENSITY;
+const Byte  cFileDiff   = F_RED|B_BLUE|FOREGROUND_INTENSITY;
 
 const Command  cmmMove        = 0x80;
 
@@ -79,6 +87,9 @@ const int  numLines  = 9;       // Number of lines of each file to display
 const int  lineWidth = 16;      // Number of bytes displayed per line
 const int  bufSize   = numLines * lineWidth;
 
+const int  inWidth = 10;        // Width of input window (excluding border)
+const int  screenWidth = 80;
+
 const int  maxPath = 260;
 
 // The number of bytes to move for each possible step size:
@@ -100,7 +111,7 @@ class FileDisplay
   ifstream           file;
   char               fileName[maxPath];
   streampos          offset;
-  wm_handle          win;
+  ConWindow          win;
   int                yPos;
   union {
     Byte             line[numLines][lineWidth];
@@ -112,16 +123,16 @@ class FileDisplay
   void         init(int y, const Difference* aDiff=NULL,
                     const char* aFileName=NULL);
   void         shutDown();
-  void         display()   const;
+  void         display();
   const Byte*  getBuffer() const { return buffer; };
-  void         move(int step)    { moveTo(offset + step); };
+  void         move(int step)    { moveTo(offset + streampos(step)); };
   void         moveTo(streampos newOffset);
   bool         setFile(const char* aFileName);
 }; // end FileDisplay
 
 class Difference
 {
-  friend FileDisplay::display() const;
+  friend void FileDisplay::display();
 
  protected:
   const FileDisplay*  file1;
@@ -138,28 +149,9 @@ class Difference
 }; // end Difference
 
 //====================================================================
-// Inline Functions:
-
-template <class T> inline const T& min(const T& t1, const T& t2)
-{
-  if  (t1 < t2)
-    return t1;
-  else
-    return t2;
-}
-
-template <class T> inline const T& max(const T& t1, const T& t2)
-{
-  if  (t1 > t2)
-    return t1;
-  else
-    return t2;
-}
-
-//====================================================================
 // Global Variables:
 
-wm_handle    bgWin, inWin, promptWin;
+ConWindow    promptWin,inWin;
 FileDisplay  file1, file2;
 Difference   diffs(&file1, &file2);
 const char*  program_name; // Name under which this program was invoked
@@ -263,7 +255,6 @@ FileDisplay::FileDisplay()
 : bufContents(0),
   diffs(NULL),
   offset(0),
-  win(NULL),
   yPos(0)
 {
   fileName[0] = '\0';
@@ -285,12 +276,7 @@ void FileDisplay::init(int y, const Difference* aDiff,
   diffs = aDiff;
   yPos  = y;
 
-  win = wm_create (0,y+1, 79,y+numLines, // Window corners
-                         0,              // No border
-                         cFileWin,       // Border attributes
-                         cFileWin);      // Default attributes
-  wm_update(win, 0);
-  wm_open(win);
+  win.init(0,y, screenWidth,numLines+1+(y==0), cFileWin); // FIXME
 
   if (aFileName)
     setFile(aFileName);
@@ -312,57 +298,60 @@ FileDisplay::~FileDisplay()
 
 void FileDisplay::shutDown()
 {
-  if (win) {
-    wm_close(win);
-    wm_delete(win);
-    win = NULL;
-  }
 } // end FileDisplay::shutDown
 
 //--------------------------------------------------------------------
 // Display the file contents:
 
-void FileDisplay::display() const
+void FileDisplay::display()
 {
-  const int  leftMar  = 11;     // Starting column of hex display
-  const int  leftMar2 = 61;     // Starting column of ASCII display
+  const short  leftMar  = 11;     // Starting column of hex display
+  const short  leftMar2 = 61;     // Starting column of ASCII display
 
   streampos  lineOffset = offset;
 
-  wm_clear(win);
-
-  int i,j,index,lineLength;
+  short i,j,index,lineLength;
   char  buf[lineWidth + lineWidth/8 + 1];
+  buf[sizeof(buf)-1] = '\0';
+
+  char  buf2[screenWidth+1];
+  buf2[screenWidth] = '\0';
 
   memset(buf, ' ', sizeof(buf));
 
   for (i = 0; i < numLines; i++) {
-    wm_gotoxy(win, 0,i);
-    wm_printf(win, "%04X %04X:",Word(lineOffset>>16),Word(lineOffset&0xFFFF));
+//    cerr << i << '\n';
+    char*  str = buf2;
+    str +=
+      sprintf(str, "%04X %04X:",Word(lineOffset>>16),Word(lineOffset&0xFFFF));
 
     lineLength  = min(lineWidth, bufContents - i*lineWidth);
 
-    for (j = index = 0; j < lineLength; j++) {
+    for (j = 0, index = -1; j < lineLength; j++) {
       if (j % 8 == 0) {
-        wm_putc(win, ' ');
+        *(str++) = ' ';
         ++index;
       }
-      wm_printf(win, "%02X ", line[i][j]);
+      str += sprintf(str, "%02X ", line[i][j]);
+
       buf[index++] = (line[i][j] >= ' ') ? line[i][j] : '.';
     }
-    buf[index] = '\0';
+    memset(buf + index, ' ', sizeof(buf) - index - 1);
+    memset(str, ' ', screenWidth - (str - buf2));
 
-    wm_puts_at(win, leftMar2-1,i, buf);
+    win.put(0,i+1, buf2);
+    win.put(leftMar2,i+1, buf);
 
     if (diffs)
       for (j = 0; j < lineWidth; j++)
         if (diffs->line[i][j]) {
-          wm_puta_at(win, j*3 + leftMar  + (j>7),i, cFileDiff,2);
-          wm_puta_at(win, j   + leftMar2 + (j>7),i, cFileDiff,1);
+          win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileDiff,2);
+          win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileDiff,1);
         }
     lineOffset += lineWidth;
   }
-  wm_update(win, 0);
+
+  win.update();
 } // end FileDisplay::display
 
 //--------------------------------------------------------------------
@@ -399,7 +388,7 @@ void FileDisplay::moveTo(streampos newOffset)
     file.clear();
 
   file.seekg(offset);
-  file.read(buffer, bufSize);
+  file.read(reinterpret_cast<char*>(buffer), bufSize);
   bufContents = file.gcount();
 } // end FileDisplay::moveTo
 
@@ -421,18 +410,20 @@ bool FileDisplay::setFile(const char* aFileName)
   strncpy(fileName, aFileName, maxPath);
   fileName[maxPath-1] = '\0';
 
-  wm_puts_at(bgWin, 0,yPos, fileName);
-  wm_puta_at(bgWin, 0,yPos, cFileName, 80);
+  win.put(0,0, fileName);
+  win.putAttribs(0,0, cFileName, screenWidth);
+  win.update();                 // FIXME
 
-  file.close();
+  if (file.is_open())
+    file.close();
   bufContents = 0;
-  file.open(fileName, ios::in|ios::bin|ios::nocreate);
+  file.open(fileName, ios::in|ios::binary);
 
   if (!file)
     return false;
 
   offset = 0;
-  file.read(buffer, bufSize);
+  file.read(reinterpret_cast<char*>(buffer), bufSize);
   bufContents = file.gcount();
 
   return true;
@@ -440,42 +431,6 @@ bool FileDisplay::setFile(const char* aFileName)
 
 //====================================================================
 // Main Program:
-//--------------------------------------------------------------------
-// Create & display prompt window:
-//
-// Returns:
-//   True:   Prompt window created & displayed
-//   False:  Unable to display prompt
-
-bool initPrompt()
-{
-  promptWin = wm_create (1,22, 78,23, // Window corners
-                         1,           // Single line border
-                         cPromptBdr,  // Border attributes
-                         cPromptWin); // Default attributes
-  if (promptWin == NULL)
-    return false;
-
-  wm_wrap(promptWin, 0);        // Do not auto-wrap
-  wm_puts(promptWin, "\x1A fwd 1 char   \x19 fwd 1 line"
-          "  RET next difference  ESC quit  ALT  freeze top\n"
-          "\x1B back 1 char  \x18 back 1 line   G goto position"
-          "      Q quit  CTRL freeze bottom");
-  wm_puta_at(promptWin,  0,0, cPromptKey, 1);
-  wm_puta_at(promptWin, 15,0, cPromptKey, 1);
-  wm_puta_at(promptWin, 29,0, cPromptKey, 3);
-  wm_puta_at(promptWin, 50,0, cPromptKey, 3);
-  wm_puta_at(promptWin, 60,0, cPromptKey, 4);
-  wm_puta_at(promptWin,  0,1, cPromptKey, 1);
-  wm_puta_at(promptWin, 15,1, cPromptKey, 1);
-  wm_puta_at(promptWin, 31,1, cPromptKey, 1);
-  wm_puta_at(promptWin, 52,1, cPromptKey, 1);
-  wm_puta_at(promptWin, 60,1, cPromptKey, 4);
-  wm_open (promptWin);          // Open the window
-
-  return true;
-} // end initPrompt
-
 //--------------------------------------------------------------------
 // Initialize program:
 //
@@ -485,41 +440,36 @@ bool initPrompt()
 
 bool initialize()
 {
-  if (!wm_init(7))
+  if (!ConWindow::startup())
     return false;
 
-  // Create & display background window:
-  bgWin = wm_create (0,0, 79,24,   // Window corners
-                     0,            // No border
-                     cBackground,  // Border attributes
-                     cBackground); // Default attributes
-  if (bgWin == NULL)
-    return false;
-  wm_open(bgWin);
+  ConWindow::hideCursor();
 
-  // Create input window:
-  inWin = wm_create (0,0, 9,0,   // Window corners
-                     1,           // Single border
-                     cPromptBdr,  // Border attributes
-                     cPromptWin); // Default attributes
-  if (inWin == NULL)
-    return false;
+  inWin.init(0,0, inWidth+2,3, cPromptBdr);
+  inWin.boxSingle(0,0, inWidth+2,3);
+  inWin.put((inWidth-4)/2,0, "\264Goto\303");
+  inWin.setAttribs(cPromptWin);
 
-  wm_border(inWin,
-            1,           // Single border
-            cPromptBdr,  // Border color
-            "Goto",      // Title
-            1,           // Separate title with vertical bars
-            cPromptBdr); // Title color
-  wm_wrap(inWin, 0);     // Do not auto-wrap
-
-  if (!initPrompt())
-    return false;
+  promptWin.init(0,21, screenWidth,4, F_WHITE|B_BLUE);
+  promptWin.boxSingle(0,0, screenWidth,4);
+  promptWin.put(1,1, "\x1A fwd 1 byte   \x19 fwd 1 line"
+                "  RET next difference  ESC quit  ALT  freeze top");
+  promptWin.put(1,2, "\x1B back 1 byte  \x18 back 1 line   G goto position"
+                "      Q quit  CTRL freeze bottom");
+  promptWin.putAttribs( 1,1, cPromptKey, 1);
+  promptWin.putAttribs(16,1, cPromptKey, 1);
+  promptWin.putAttribs(30,1, cPromptKey, 3);
+  promptWin.putAttribs(51,1, cPromptKey, 3);
+  promptWin.putAttribs(61,1, cPromptKey, 4);
+  promptWin.putAttribs( 1,2, cPromptKey, 1);
+  promptWin.putAttribs(16,2, cPromptKey, 1);
+  promptWin.putAttribs(32,2, cPromptKey, 1);
+  promptWin.putAttribs(53,2, cPromptKey, 1);
+  promptWin.putAttribs(61,2, cPromptKey, 4);
+  promptWin.update();
 
   file1.init(0,&diffs);
   file2.init(11,&diffs);
-
-  wm_top(promptWin);
 
   return true;
 } // end initialize
@@ -530,21 +480,21 @@ bool initialize()
 static void license()
 {
   cout << "\
-Visual Binary Diff
-Copyright 1995, 1996 by Christopher J. Madsen
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License as
-published by the Free Software Foundation; either version 2 of
-the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
+Visual Binary Diff\n\
+Copyright 1995-7 by Christopher J. Madsen\n\
+\n\
+This program is free software; you can redistribute it and/or\n\
+modify it under the terms of the GNU General Public License as\n\
+published by the Free Software Foundation; either version 2 of\n\
+the License, or (at your option) any later version.\n\
+\n\
+This program is distributed in the hope that it will be useful,\n\
+but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n\
+GNU General Public License for more details.\n\
+\n\
+You should have received a copy of the GNU General Public License\n\
+along with this program; if not, write to the Free Software\n\
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.\n";
   exit(0);
 } // end license
@@ -563,12 +513,12 @@ static void usage(int status)
   if (status > 1)
     cerr << "Try `" << program_name << " --help' for more information.\n";
   else {
-    cout << "Usage: " << program_name << " FILE1 FILE2
-Compare FILE1 and FILE2 byte by byte.
-
-Options:
-      --help               display this help information and exit
-      -L, --license        display license & warranty information and exit
+    cout << "Usage: " << program_name << " FILE1 FILE2\n\
+Compare FILE1 and FILE2 byte by byte.\n\
+\n\
+Options:\n\
+      --help               display this help information and exit\n\
+      -L, --license        display license & warranty information and exit\n\
       -V, --version        display version information and exit\n";
   }
   exit(status);
@@ -582,108 +532,111 @@ Options:
 
 Command getCommand()
 {
+  KEY_EVENT_RECORD e;
   Command  cmd = cmNothing;
 
-  while (_read_kbd(0,0,0) != -1) // Clear keyboard buffer
-    ;
+  while (cmd == cmNothing) {
+    ConWindow::readKey(e);
 
-  int  key = _read_kbd(0,1,0);
-
-  key = toupper(key);
-
-  switch (key) {
-   case 0:                      // Extended code
-    key = _read_kbd(0,1,0);
-    switch (key) {
-     case K_DOWN:
-      cmd = cmmMove|cmmMoveBoth|cmmMoveLine|cmmMoveForward;
-      break;
-     case K_RIGHT:
-      cmd = cmmMove|cmmMoveBoth|cmmMoveByte|cmmMoveForward;
-      break;
-     case K_PAGEDOWN:
-      cmd = cmmMove|cmmMoveBoth|cmmMovePage|cmmMoveForward;
-      break;
-     case K_LEFT:
-      cmd = cmmMove|cmmMoveBoth|cmmMoveByte;
-      break;
-     case K_UP:
-      cmd = cmmMove|cmmMoveBoth|cmmMoveLine;
-      break;
-     case K_PAGEUP:
-      cmd = cmmMove|cmmMoveBoth|cmmMovePage;
-      break;
-     case K_HOME:
-      cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
+    switch (toupper(e.uChar.AsciiChar)) {
+     case 0x0D:               // Enter
+      cmd = cmNextDiff;
       break;
 
-     case K_ALT_G:
-      cmd = cmgGoto|cmgGotoBottom;
-      break;
-     case K_ALT_DOWN:
-      cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
-      break;
-     case K_ALT_RIGHT:
-      cmd = cmmMove|cmmMoveBottom|cmmMoveByte|cmmMoveForward;
-      break;
-     case K_ALT_PAGEDOWN:
-      cmd = cmmMove|cmmMoveBottom|cmmMovePage|cmmMoveForward;
-      break;
-     case K_ALT_LEFT:
-      cmd = cmmMove|cmmMoveBottom|cmmMoveByte;
-      break;
-     case K_ALT_UP:
-      cmd = cmmMove|cmmMoveBottom|cmmMoveLine;
-      break;
-     case K_ALT_PAGEUP:
-      cmd = cmmMove|cmmMoveBottom|cmmMovePage;
-      break;
-     case K_ALT_HOME:
-      cmd = cmmMove|cmmMoveBottom|cmmMoveAll;
+     case 'G':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmgGoto|cmgGotoBottom;
+      else
+        cmd = cmgGoto|cmgGotoBoth;
       break;
 
-     case K_CTRL_DOWN:
-      cmd = cmmMove|cmmMoveTop|cmmMoveLine|cmmMoveForward;
+     case 0x07:               // Ctrl+G
+      cmd = cmgGoto|cmgGotoTop;
       break;
-     case K_CTRL_RIGHT:
-      cmd = cmmMove|cmmMoveTop|cmmMoveByte|cmmMoveForward;
-      break;
-     case K_CTRL_PAGEDOWN:
-      cmd = cmmMove|cmmMoveTop|cmmMovePage|cmmMoveForward;
-      break;
-     case K_CTRL_LEFT:
-      cmd = cmmMove|cmmMoveTop|cmmMoveByte;
-      break;
-     case K_CTRL_UP:
-      cmd = cmmMove|cmmMoveTop|cmmMoveLine;
-      break;
-     case K_CTRL_PAGEUP:
-      cmd = cmmMove|cmmMoveTop|cmmMovePage;
-      break;
-     case K_CTRL_HOME:
-      cmd = cmmMove|cmmMoveTop|cmmMoveAll;
-      break;
-    } // end inner switch
-    break;
 
-   case 0x0D:                   // Enter
-    cmd = cmNextDiff;
-    break;
+     case 0x1B:               // Esc
+     case 0x03:               // Ctrl+C
+     case 'Q':
+      cmd = cmQuit;
+      break;
 
-   case 'G':
-    cmd = cmgGoto|cmgGotoBoth;
-    break;
-
-   case 0x07:                   // Ctrl+G
-    cmd = cmgGoto|cmgGotoTop;
-    break;
-
-   case 0x1B:                   // Esc
-   case 0x03:                   // Ctrl+C
-   case 'Q':
-    cmd = cmQuit;
-    break;
-  } // end switch key
+     default:                 // Try extended codes
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED)) {
+        switch (e.wVirtualKeyCode) {
+         case VK_DOWN:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
+          break;
+         case VK_RIGHT:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveByte|cmmMoveForward;
+          break;
+         case VK_NEXT:
+          cmd = cmmMove|cmmMoveBottom|cmmMovePage|cmmMoveForward;
+          break;
+         case VK_LEFT:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveByte;
+          break;
+         case VK_UP:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveLine;
+          break;
+         case VK_PRIOR:
+          cmd = cmmMove|cmmMoveBottom|cmmMovePage;
+          break;
+         case VK_HOME:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveAll;
+          break;
+        } // end switch alt virtual key code
+      } else if (e.dwControlKeyState & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED)) {
+        switch (e.wVirtualKeyCode) {
+         case VK_DOWN:
+          cmd = cmmMove|cmmMoveTop|cmmMoveLine|cmmMoveForward;
+          break;
+         case VK_RIGHT:
+          cmd = cmmMove|cmmMoveTop|cmmMoveByte|cmmMoveForward;
+          break;
+         case VK_NEXT:
+          cmd = cmmMove|cmmMoveTop|cmmMovePage|cmmMoveForward;
+          break;
+         case VK_LEFT:
+          cmd = cmmMove|cmmMoveTop|cmmMoveByte;
+          break;
+         case VK_UP:
+          cmd = cmmMove|cmmMoveTop|cmmMoveLine;
+          break;
+         case VK_PRIOR:
+          cmd = cmmMove|cmmMoveTop|cmmMovePage;
+          break;
+         case VK_HOME:
+          cmd = cmmMove|cmmMoveTop|cmmMoveAll;
+          break;
+        } // end switch control virtual key code
+      } else {
+        switch (e.wVirtualKeyCode) {
+         case VK_DOWN:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveLine|cmmMoveForward;
+          break;
+         case VK_RIGHT:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveByte|cmmMoveForward;
+          break;
+         case VK_NEXT:
+          cmd = cmmMove|cmmMoveBoth|cmmMovePage|cmmMoveForward;
+          break;
+         case VK_LEFT:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveByte;
+          break;
+         case VK_UP:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveLine;
+          break;
+         case VK_PRIOR:
+          cmd = cmmMove|cmmMoveBoth|cmmMovePage;
+          break;
+         case VK_HOME:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
+          break;
+        } // end switch virtual key code
+      } // end else not Alt or Ctrl
+      break;
+    } // end switch ASCII code
+  } // end while no command
 
   return cmd;
 } // end getCommand
@@ -693,46 +646,51 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
-  wm_top(inWin);
-  wm_move(inWin, 36,((cmd & cmgGotoBottom)
-                     ? ((cmd & cmgGotoTop) ? 11 : 16)
-                     : 5));
-  wm_clear(inWin);
-  wm_gotoxy(inWin,0,0);
-  wm_open(inWin);
-  wm_cursor(inWin);
+  inWin.move((screenWidth-inWidth-2)/2,
+             ((cmd & cmgGotoBottom)
+              ? ((cmd & cmgGotoTop) ? 10 : 15)
+              : 4));
 
-  const int  bufLen = 8;
-  char  buf[bufLen+1] = "";
+  inWin.putChar(1,1, ' ', inWidth);
+  inWin.update();
+  inWin.setCursor(2,1);
+  ConWindow::showCursor();
+
+  const int  bufLen = inWidth-2;
+  char  buf[bufLen+1];
   bool  done = false;
   int   i = 0;
+  KEY_EVENT_RECORD e;
+
+  memset(buf, ' ', bufLen);
+  buf[bufLen] = '\0';
+
   while (!done) {
-    int  key = _read_kbd(0,1,0);
-    key = toupper(key);
+    inWin.put(2,1,buf);
+    inWin.update();
+    inWin.setCursor(2+i,1);
+    ConWindow::readKey(e);
+
+    char key = toupper(e.uChar.AsciiChar);
 
     if (key) {
       if (strchr("0123456789ABCDEF", key)) {
         if (i >= bufLen) continue;
         buf[i++] = key;
-        wm_putc(inWin,key);
-      } else if (key == 0x0D) {  // Enter
+      } else if (key == 0x0D) { // Enter
         buf[i] = '\0';
         done = true;
-      } else if (key == 0x08) {   // Backspace
+      } else if (key == 0x08) { // Backspace
         if (!i) continue;
-        buf[i--] = '\0';
-        wm_backsp(inWin,1);
-        wm_putc(inWin,' ');
-        wm_backsp(inWin,1);
-      } else if (key == 0x1B) {   // ESC
+        buf[--i] = ' ';
+      } else if (key == 0x1B) { // ESC
         buf[0] = '\0';
         done = true;
       }
-    } else
-      _read_kbd(0,1,0);         // Ignore extended keys
+    } // end if key
   } // end while
 
-  wm_close(inWin);
+  ConWindow::hideCursor();
 
   if (!buf[0])
     return;
@@ -810,8 +768,8 @@ int main(int argc, char* argv[])
   };
 
   if ((program_name = strrchr(argv[0], '\\')))
-    // Isolate the filename and convert to lowercase:
-    strlwr(++const_cast<char*>(program_name));
+    // Isolate the filename:
+    ++program_name;
   else
     program_name = argv[0];
 
@@ -837,7 +795,7 @@ int main(int argc, char* argv[])
   } // end while options
 
   if (show_version) {
-      cerr << "VBinDiff $Revision: 1.8 $\n";
+      cerr << "VBinDiff $Revision: 2.0 $\n";
       exit(0);
   }
 
@@ -851,7 +809,7 @@ int main(int argc, char* argv[])
     usage(1);
 
   cout << "\
-VBinDiff $Revision: 1.8 $, Copyright 1995, 1996 Christopher J. Madsen
+VBinDiff $Revision: 2.0 $, Copyright 1995-7 Christopher J. Madsen\n\
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!initialize()) {
@@ -880,8 +838,7 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
   file1.shutDown();
   file2.shutDown();
 
-  wm_close_all();               // Close all windows
-  wm_exit();                    // End window manager
+  ConWindow::shutdown();
 
   if (*error) {
     errMsg << '\n' << '\0';
@@ -890,7 +847,3 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
   }
   return 0;
 } // end main
-
-// Local Variables:
-// pathsearch-c-include-path: emx-c-include-path
-// End:
