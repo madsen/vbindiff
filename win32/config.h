@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: config.h 4608 2005-03-21 21:36:38Z cjm $
+// $Id: config.h 4612 2005-03-22 16:14:44Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -19,7 +19,7 @@
 
 #define WIN32_CONSOLE 1
 
-#define PACKAGE_VERSION "3.0"   // FIXME
+#define PACKAGE_VERSION "3.0" // Copied from configure.ac by update.pl
 
 /////////////////////////////////////////////////////////////////////////////
 // Local Variables:
