@@ -1,0 +1,8 @@
+*.exe
+*.ncb
+*.o
+*.obj
+*.pdb
+*.plg
+Debug
+Release

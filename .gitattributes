@@ -1,0 +1,11 @@
+*	text
+*.dsp   eol=crlf
+*.dsw   eol=crlf
+*.bmp	-text
+*.cur	-text
+*.doc	-text
+*.gif	-text
+*.ico	-text
+*.jpg	-text
+*.pdf	-text
+*.png	-text
