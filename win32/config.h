@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: config.h 4612 2005-03-22 16:14:44Z cjm $
+// $Id: config.h 4615 2005-03-23 19:22:50Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -19,9 +19,10 @@
 
 #define WIN32_CONSOLE 1
 
-#define PACKAGE_VERSION "3.0" // Copied from configure.ac by update.pl
+#define PACKAGE_VERSION "3.0_beta1" // Copied from configure.ac by update.pl
 
 /////////////////////////////////////////////////////////////////////////////
 // Local Variables:
 // mode: c++
+// c-file-style: "cjm"
 // End:

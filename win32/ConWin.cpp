@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4608 2005-03-21 21:36:38Z cjm $
+// $Id: ConWin.cpp 4615 2005-03-23 19:22:50Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -404,6 +404,7 @@ void ConWindow::update()
   WriteConsoleOutput(scrBuf, data, size, ZeroC, &r);
 } // end ConWindow::update
 
+//--------------------------------------------------------------------
 // Local Variables:
 // cjm-related-file: "ConWin.hpp"
 //     c-file-style: "cjm"

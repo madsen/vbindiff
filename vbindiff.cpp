@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4614 2005-03-22 17:46:35Z cjm $
+// $Id: vbindiff.cpp 4615 2005-03-23 19:22:50Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -353,6 +353,8 @@ void FileDisplay::resize()
     delete [] reinterpret_cast<Byte*>(data);
 
   data = reinterpret_cast<FileBuffer*>(new Byte[bufSize]);
+
+  // FIXME resize window
 } // end FileDisplay::resize
 
 //--------------------------------------------------------------------
@@ -843,9 +845,8 @@ void showPrompt()
     promptWin.putAttribs(61,1, cPromptKey, topBotLength);
     promptWin.putAttribs(61,2, cPromptKey, topBotLength);
   }
-  displayCharacterSet();
   displayLockState();
-  promptWin.update();
+  displayCharacterSet();        // Calls promptWin.update()
 } // end showPrompt
 
 //--------------------------------------------------------------------
@@ -1315,6 +1316,7 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
   return 0;
 } // end main
 
+//--------------------------------------------------------------------
 // Local Variables:
 //     c-file-style: "cjm"
 // End:
