@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.7 1996/01/18 21:29:11 Madsen Exp $
+// $Id: vbindiff.cc,v 1.8 1997/10/06 17:26:57 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 1995 by Christopher J. Madsen
+//   Copyright 1995, 1996 by Christopher J. Madsen
 //
 //   Visual display of differences in binary files
 //
@@ -41,8 +41,6 @@ typedef unsigned short  Word;
 
 typedef Byte  Command;
 
-enum Boolean {False, True};
-
 //====================================================================
 // Constants:
 
@@ -67,6 +65,11 @@ const Command  cmmMovePage    = 0x02; // Move 1 page
 const Command  cmmMoveAll     = 0x03; // Move to beginning
 
 const Command  cmmMoveBoth    = cmmMoveTop|cmmMoveBottom;
+
+const Command  cmgGoto        = 0x04; // Commands 4-7
+const Command  cmgGotoTop     = 0x01;
+const Command  cmgGotoBottom  = 0x02;
+const Command  cmgGotoBoth    = cmgGotoTop|cmgGotoBottom;
 
 const Command  cmNothing      = 0;
 const Command  cmNextDiff     = 1;
@@ -113,7 +116,7 @@ class FileDisplay
   const Byte*  getBuffer() const { return buffer; };
   void         move(int step)    { moveTo(offset + step); };
   void         moveTo(streampos newOffset);
-  Boolean      setFile(const char* aFileName);
+  bool         setFile(const char* aFileName);
 }; // end FileDisplay
 
 class Difference
@@ -156,7 +159,7 @@ template <class T> inline const T& max(const T& t1, const T& t2)
 //====================================================================
 // Global Variables:
 
-wm_handle    bgWin, promptWin;
+wm_handle    bgWin, inWin, promptWin;
 FileDisplay  file1, file2;
 Difference   diffs(&file1, &file2);
 const char*  program_name; // Name under which this program was invoked
@@ -170,7 +173,7 @@ const char*  program_name; // Name under which this program was invoked
 //   numDiffs:
 //     The number of differences between the two FileDisplay buffers
 //   line/table:
-//     An array of Booleans for each byte in the FileDisplay buffers
+//     An array of bools for each byte in the FileDisplay buffers
 //     True marks differences
 //
 //--------------------------------------------------------------------
@@ -213,7 +216,7 @@ int Difference::compute()
   int  i;
   for (i = 0; i < size; i++)
     if (*(buf1++) != *(buf2++)) {
-      table[i] = True;
+      table[i] = true;
       ++different;
     }
 
@@ -223,7 +226,7 @@ int Difference::compute()
     // One buffer has more data than the other:
     different += size - i;
     for (; i < size; i++)
-      table[i] = True;          // These bytes are only in 1 buffer
+      table[i] = true;          // These bytes are only in 1 buffer
   } else if (!size)
     return -1;                  // Both buffers are empty
 
@@ -413,7 +416,7 @@ void FileDisplay::moveTo(streampos newOffset)
 //   True:   Operation successful
 //   False:  Unable to open file
 
-Boolean FileDisplay::setFile(const char* aFileName)
+bool FileDisplay::setFile(const char* aFileName)
 {
   strncpy(fileName, aFileName, maxPath);
   fileName[maxPath-1] = '\0';
@@ -426,13 +429,13 @@ Boolean FileDisplay::setFile(const char* aFileName)
   file.open(fileName, ios::in|ios::bin|ios::nocreate);
 
   if (!file)
-    return False;
+    return false;
 
   offset = 0;
   file.read(buffer, bufSize);
   bufContents = file.gcount();
 
-  return True;
+  return true;
 } // end FileDisplay::setFile
 
 //====================================================================
@@ -444,30 +447,33 @@ Boolean FileDisplay::setFile(const char* aFileName)
 //   True:   Prompt window created & displayed
 //   False:  Unable to display prompt
 
-Boolean initPrompt()
+bool initPrompt()
 {
   promptWin = wm_create (1,22, 78,23, // Window corners
                          1,           // Single line border
                          cPromptBdr,  // Border attributes
                          cPromptWin); // Default attributes
   if (promptWin == NULL)
-    return False;
+    return false;
 
-  wm_puts(promptWin, "\x1A forward 1 char   \x19 forward 1 line"
-          "   RET next difference  ALT  freeze top\n"
-          "\x1B backward 1 char  \x18 backward 1 line"
-          "  ESC quit             CTRL freeze bottom");
+  wm_wrap(promptWin, 0);        // Do not auto-wrap
+  wm_puts(promptWin, "\x1A fwd 1 char   \x19 fwd 1 line"
+          "  RET next difference  ESC quit  ALT  freeze top\n"
+          "\x1B back 1 char  \x18 back 1 line   G goto position"
+          "      Q quit  CTRL freeze bottom");
   wm_puta_at(promptWin,  0,0, cPromptKey, 1);
-  wm_puta_at(promptWin, 19,0, cPromptKey, 1);
-  wm_puta_at(promptWin, 38,0, cPromptKey, 3);
-  wm_puta_at(promptWin, 59,0, cPromptKey, 4);
+  wm_puta_at(promptWin, 15,0, cPromptKey, 1);
+  wm_puta_at(promptWin, 29,0, cPromptKey, 3);
+  wm_puta_at(promptWin, 50,0, cPromptKey, 3);
+  wm_puta_at(promptWin, 60,0, cPromptKey, 4);
   wm_puta_at(promptWin,  0,1, cPromptKey, 1);
-  wm_puta_at(promptWin, 19,1, cPromptKey, 1);
-  wm_puta_at(promptWin, 38,1, cPromptKey, 3);
-  wm_puta_at(promptWin, 59,1, cPromptKey, 4);
+  wm_puta_at(promptWin, 15,1, cPromptKey, 1);
+  wm_puta_at(promptWin, 31,1, cPromptKey, 1);
+  wm_puta_at(promptWin, 52,1, cPromptKey, 1);
+  wm_puta_at(promptWin, 60,1, cPromptKey, 4);
   wm_open (promptWin);          // Open the window
 
-  return True;
+  return true;
 } // end initPrompt
 
 //--------------------------------------------------------------------
@@ -477,10 +483,10 @@ Boolean initPrompt()
 //   True:   Initialization complete
 //   False:  Error
 
-Boolean initialize()
+bool initialize()
 {
   if (!wm_init(7))
-    return False;
+    return false;
 
   // Create & display background window:
   bgWin = wm_create (0,0, 79,24,   // Window corners
@@ -488,18 +494,34 @@ Boolean initialize()
                      cBackground,  // Border attributes
                      cBackground); // Default attributes
   if (bgWin == NULL)
-    return False;
+    return false;
   wm_open(bgWin);
 
+  // Create input window:
+  inWin = wm_create (0,0, 9,0,   // Window corners
+                     1,           // Single border
+                     cPromptBdr,  // Border attributes
+                     cPromptWin); // Default attributes
+  if (inWin == NULL)
+    return false;
+
+  wm_border(inWin,
+            1,           // Single border
+            cPromptBdr,  // Border color
+            "Goto",      // Title
+            1,           // Separate title with vertical bars
+            cPromptBdr); // Title color
+  wm_wrap(inWin, 0);     // Do not auto-wrap
+
   if (!initPrompt())
-    return False;
+    return false;
 
   file1.init(0,&diffs);
   file2.init(11,&diffs);
 
   wm_top(promptWin);
 
-  return True;
+  return true;
 } // end initialize
 
 //--------------------------------------------------------------------
@@ -509,7 +531,7 @@ static void license()
 {
   cout << "\
 Visual Binary Diff
-Copyright 1995 by Christopher J. Madsen
+Copyright 1995, 1996 by Christopher J. Madsen
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
@@ -595,6 +617,9 @@ Command getCommand()
       cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
       break;
 
+     case K_ALT_G:
+      cmd = cmgGoto|cmgGotoBottom;
+      break;
      case K_ALT_DOWN:
       cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
       break;
@@ -645,6 +670,14 @@ Command getCommand()
     cmd = cmNextDiff;
     break;
 
+   case 'G':
+    cmd = cmgGoto|cmgGotoBoth;
+    break;
+
+   case 0x07:                   // Ctrl+G
+    cmd = cmgGoto|cmgGotoTop;
+    break;
+
    case 0x1B:                   // Esc
    case 0x03:                   // Ctrl+C
    case 'Q':
@@ -654,6 +687,63 @@ Command getCommand()
 
   return cmd;
 } // end getCommand
+
+//--------------------------------------------------------------------
+// Get a file position:
+
+void gotoPosition(Command cmd)
+{
+  wm_top(inWin);
+  wm_move(inWin, 36,((cmd & cmgGotoBottom)
+                     ? ((cmd & cmgGotoTop) ? 11 : 16)
+                     : 5));
+  wm_clear(inWin);
+  wm_gotoxy(inWin,0,0);
+  wm_open(inWin);
+  wm_cursor(inWin);
+
+  const int  bufLen = 8;
+  char  buf[bufLen+1] = "";
+  bool  done = false;
+  int   i = 0;
+  while (!done) {
+    int  key = _read_kbd(0,1,0);
+    key = toupper(key);
+
+    if (key) {
+      if (strchr("0123456789ABCDEF", key)) {
+        if (i >= bufLen) continue;
+        buf[i++] = key;
+        wm_putc(inWin,key);
+      } else if (key == 0x0D) {  // Enter
+        buf[i] = '\0';
+        done = true;
+      } else if (key == 0x08) {   // Backspace
+        if (!i) continue;
+        buf[i--] = '\0';
+        wm_backsp(inWin,1);
+        wm_putc(inWin,' ');
+        wm_backsp(inWin,1);
+      } else if (key == 0x1B) {   // ESC
+        buf[0] = '\0';
+        done = true;
+      }
+    } else
+      _read_kbd(0,1,0);         // Ignore extended keys
+  } // end while
+
+  wm_close(inWin);
+
+  if (!buf[0])
+    return;
+
+  streampos  pos = strtoul(buf, NULL, 16);
+
+  if (cmd & cmgGotoTop)
+    file1.moveTo(pos);
+  if (cmd & cmgGotoBottom)
+    file2.moveTo(pos);
+} // end gotoPosition
 
 //--------------------------------------------------------------------
 // Handle a command:
@@ -681,6 +771,8 @@ void handleCmd(Command cmd)
       else
         file2.moveTo(0);
   } // end if move
+  else if ((cmd & cmgGoto) == cmgGoto)
+    gotoPosition(cmd);
   else if (cmd == cmNextDiff) {
     do {
       file1.move(bufSize);
@@ -745,7 +837,7 @@ int main(int argc, char* argv[])
   } // end while options
 
   if (show_version) {
-      cerr << "VBinDiff $Revision: 1.7 $\n";
+      cerr << "VBinDiff $Revision: 1.8 $\n";
       exit(0);
   }
 
@@ -759,7 +851,7 @@ int main(int argc, char* argv[])
     usage(1);
 
   cout << "\
-VBinDiff $Revision: 1.7 $, Copyright 1995 Christopher J. Madsen
+VBinDiff $Revision: 1.8 $, Copyright 1995, 1996 Christopher J. Madsen
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!initialize()) {
