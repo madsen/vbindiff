@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4590 2005-03-08 21:20:01Z cjm $
+// $Id: vbindiff.cpp 4592 2005-03-12 17:11:36Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -22,22 +22,20 @@
 //   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 //--------------------------------------------------------------------
 
-#include "StdAfx.h"
-
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <iostream>
 #include <fstream>
-#include <strstream>
+#include <sstream>
 using namespace std;
+
+#include "config.h"
 
 #include "GetOpt/GetOpt.hpp"
 
 #include "ConWin.hpp"
-
-#define PACKAGE_VERSION "2.0"
 
 const char titleString[] =
   "\nVBinDiff " PACKAGE_VERSION " by Christopher J. Madsen";
@@ -52,17 +50,10 @@ typedef unsigned short  Word;
 
 typedef Byte  Command;
 
+enum LockState { lockNeither = 0, lockTop, lockBottom };
+
 //====================================================================
 // Constants:
-
-const Byte  cBackground = F_WHITE|B_BLUE;
-const Byte  cPromptWin  = F_WHITE|B_BLUE;
-const Byte  cPromptKey  = F_WHITE|B_BLUE|FOREGROUND_INTENSITY;
-const Byte  cPromptBdr  = F_WHITE|B_BLUE|FOREGROUND_INTENSITY;
-const Byte  cFileName   = F_BLACK|B_WHITE;
-const Byte  cFileWin    = F_WHITE|B_BLUE;
-const Byte  cFileDiff   = F_RED|B_BLUE|FOREGROUND_INTENSITY;
-const Byte  cFileEdit   = F_YELLOW|B_BLUE|FOREGROUND_INTENSITY;
 
 const Command  cmmMove        = 0x80;
 
@@ -82,12 +73,15 @@ const Command  cmgGoto        = 0x04; // Commands 4-7
 const Command  cmgGotoTop     = 0x01;
 const Command  cmgGotoBottom  = 0x02;
 const Command  cmgGotoBoth    = cmgGotoTop|cmgGotoBottom;
+const Command  cmgGotoMask    = ~cmgGotoBoth;
 
 const Command  cmNothing      = 0;
 const Command  cmNextDiff     = 1;
 const Command  cmQuit         = 2;
 const Command  cmEditTop      = 8;
 const Command  cmEditBottom   = 9;
+const Command  cmUseTop       = 10;
+const Command  cmUseBottom    = 11;
 
 const short  leftMar  = 11;     // Starting column of hex display
 const short  leftMar2 = 61;     // Starting column of ASCII display
@@ -115,7 +109,7 @@ class Difference;
 
 class FileDisplay
 {
-  friend Difference;
+  friend class Difference;
 
  protected:
   int                bufContents;
@@ -171,6 +165,7 @@ ConWindow    promptWin,inWin;
 FileDisplay  file1, file2;
 Difference   diffs(&file1, &file2);
 const char*  program_name; // Name under which this program was invoked
+LockState    lockState = lockNeither;
 
 //====================================================================
 // Class Difference:
@@ -315,6 +310,7 @@ FileDisplay::~FileDisplay()
 
 void FileDisplay::shutDown()
 {
+  win.close();
 } // end FileDisplay::shutDown
 
 //--------------------------------------------------------------------
@@ -377,6 +373,8 @@ void FileDisplay::display()
 
 bool FileDisplay::edit(const FileDisplay* other)
 {
+  return false;
+#if 0
   if (!bufContents && offset)
     return false;               // You must not be completely past EOF
 
@@ -481,7 +479,7 @@ bool FileDisplay::edit(const FileDisplay* other)
  done:
   if (changed) {
     promptWin.clear();
-    promptWin.boxSingle(0,0, screenWidth,4);
+    promptWin.border();
     promptWin.put(30,1,"Save changes (Y/N):");
     promptWin.update();
     promptWin.setCursor(50,1);
@@ -497,6 +495,7 @@ bool FileDisplay::edit(const FileDisplay* other)
   showPrompt();
   ConWindow::hideCursor();
   return changed;
+#endif // FIXME
 } // end FileDisplay::edit
 
 //--------------------------------------------------------------------
@@ -615,12 +614,23 @@ bool FileDisplay::setFile(const char* aFileName)
 //====================================================================
 // Main Program:
 //--------------------------------------------------------------------
+void displayLockState()
+{
+  promptWin.putAttribs(63,1,
+                       ((lockState == lockBottom) ? cLocked : cBackground),
+                       8);
+  promptWin.putAttribs(63,2,
+                       ((lockState == lockTop)    ? cLocked : cBackground),
+                       11);
+} // end displayLockState
+
+//--------------------------------------------------------------------
 // Display prompt window for editing:
 void showEditPrompt()
 {
   promptWin.clear();
-  promptWin.boxSingle(0,0, screenWidth,4);
-  promptWin.put(9,1, "\x1B\x18\x19\x1A move cursor        TAB hex\x1B\x1A"
+  promptWin.border();
+  promptWin.put(9,1, "\x3C\x5E\x76\x3E move cursor        TAB hex\x3C\x3E"
                 "ASCII       ESC done");
   promptWin.put(25,2, "RET copy byte from other file");
   promptWin.putAttribs( 9,1, cPromptKey, 4);
@@ -636,21 +646,21 @@ void showEditPrompt()
 void showPrompt()
 {
   promptWin.clear();
-  promptWin.boxSingle(0,0, screenWidth,4);
-  promptWin.put(1,1, "\x1A fwd 1 byte   \x19 fwd 1 line"
-                "  RET next difference  ESC quit  ALT  freeze top");
-  promptWin.put(1,2, "\x1B back 1 byte  \x18 back 1 line   G goto position"
-                "      Q quit  CTRL freeze bottom");
+  promptWin.border();
+  promptWin.put(1,1, "\x3E fwd 1 byte   \x76 fwd 1 line"
+                "  RET next difference  ESC quit  T move top");
+  promptWin.put(1,2, "\x3C back 1 byte  \x5E back 1 line   G goto position"
+                "      Q quit  B move bottom");
   promptWin.putAttribs( 1,1, cPromptKey, 1);
   promptWin.putAttribs(16,1, cPromptKey, 1);
   promptWin.putAttribs(30,1, cPromptKey, 3);
   promptWin.putAttribs(51,1, cPromptKey, 3);
-  promptWin.putAttribs(61,1, cPromptKey, 4);
+  promptWin.putAttribs(61,1, cPromptKey, 1);
   promptWin.putAttribs( 1,2, cPromptKey, 1);
   promptWin.putAttribs(16,2, cPromptKey, 1);
   promptWin.putAttribs(32,2, cPromptKey, 1);
   promptWin.putAttribs(53,2, cPromptKey, 1);
-  promptWin.putAttribs(61,2, cPromptKey, 4);
+  promptWin.putAttribs(61,2, cPromptKey, 1);
   promptWin.update();
 } // end showPrompt
 
@@ -669,11 +679,12 @@ bool initialize()
   ConWindow::hideCursor();
 
   inWin.init(0,0, inWidth+2,3, cPromptBdr);
-  inWin.boxSingle(0,0, inWidth+2,3);
+  inWin.border();
   inWin.put((inWidth-4)/2,0, "\264Goto\303");
   inWin.setAttribs(cPromptWin);
+  inWin.hide();
 
-  promptWin.init(0,21, screenWidth,4, F_WHITE|B_BLUE);
+  promptWin.init(0,21, screenWidth,4, cBackground);
   showPrompt();
 
   file1.init(0,&diffs);
@@ -690,35 +701,34 @@ bool initialize()
 
 Command getCommand()
 {
-  KEY_EVENT_RECORD e;
   Command  cmd = cmNothing;
 
   while (cmd == cmNothing) {
-    ConWindow::readKey(e);
+    int e = promptWin.readKey();
 
-    switch (toupper(e.uChar.AsciiChar)) {
+    switch (toupper(e)) {
      case 0x0D:               // Enter
       cmd = cmNextDiff;
       break;
 
-     case 0x05:                 // Ctrl+E
-     case 'E':
-      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
-        cmd = cmEditBottom;
-      else
-        cmd = cmEditTop;
-      break;
-
-     case 'G':
-      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
-        cmd = cmgGoto|cmgGotoBottom;
-      else
-        cmd = cmgGoto|cmgGotoBoth;
-      break;
-
-     case 0x07:               // Ctrl+G
-      cmd = cmgGoto|cmgGotoTop;
-      break;
+//FIX     case 0x05:                 // Ctrl+E
+//FIX     case 'E':
+//FIX      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+//FIX        cmd = cmEditBottom;
+//FIX      else
+//FIX        cmd = cmEditTop;
+//FIX      break;
+//FIX
+//FIX     case 'G':
+//FIX      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+//FIX        cmd = cmgGoto|cmgGotoBottom;
+//FIX      else
+//FIX        cmd = cmgGoto|cmgGotoBoth;
+//FIX      break;
+//FIX
+//FIX     case 0x07:               // Ctrl+G
+//FIX      cmd = cmgGoto|cmgGotoTop;
+//FIX      break;
 
      case 0x1B:               // Esc
      case 0x03:               // Ctrl+C
@@ -726,83 +736,23 @@ Command getCommand()
       cmd = cmQuit;
       break;
 
-     default:                 // Try extended codes
-      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED)) {
-        switch (e.wVirtualKeyCode) {
-         case VK_DOWN:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
-          break;
-         case VK_RIGHT:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveByte|cmmMoveForward;
-          break;
-         case VK_NEXT:
-          cmd = cmmMove|cmmMoveBottom|cmmMovePage|cmmMoveForward;
-          break;
-         case VK_LEFT:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveByte;
-          break;
-         case VK_UP:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveLine;
-          break;
-         case VK_PRIOR:
-          cmd = cmmMove|cmmMoveBottom|cmmMovePage;
-          break;
-         case VK_HOME:
-          cmd = cmmMove|cmmMoveBottom|cmmMoveAll;
-          break;
-        } // end switch alt virtual key code
-      } else if (e.dwControlKeyState & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED)) {
-        switch (e.wVirtualKeyCode) {
-         case VK_DOWN:
-          cmd = cmmMove|cmmMoveTop|cmmMoveLine|cmmMoveForward;
-          break;
-         case VK_RIGHT:
-          cmd = cmmMove|cmmMoveTop|cmmMoveByte|cmmMoveForward;
-          break;
-         case VK_NEXT:
-          cmd = cmmMove|cmmMoveTop|cmmMovePage|cmmMoveForward;
-          break;
-         case VK_LEFT:
-          cmd = cmmMove|cmmMoveTop|cmmMoveByte;
-          break;
-         case VK_UP:
-          cmd = cmmMove|cmmMoveTop|cmmMoveLine;
-          break;
-         case VK_PRIOR:
-          cmd = cmmMove|cmmMoveTop|cmmMovePage;
-          break;
-         case VK_HOME:
-          cmd = cmmMove|cmmMoveTop|cmmMoveAll;
-          break;
-        } // end switch control virtual key code
-      } else {
-        switch (e.wVirtualKeyCode) {
-         case VK_DOWN:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveLine|cmmMoveForward;
-          break;
-         case VK_RIGHT:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveByte|cmmMoveForward;
-          break;
-         case VK_NEXT:
-          cmd = cmmMove|cmmMoveBoth|cmmMovePage|cmmMoveForward;
-          break;
-         case VK_LEFT:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveByte;
-          break;
-         case VK_UP:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveLine;
-          break;
-         case VK_PRIOR:
-          cmd = cmmMove|cmmMoveBoth|cmmMovePage;
-          break;
-         case VK_HOME:
-          cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
-          break;
-        } // end switch virtual key code
-      } // end else not Alt or Ctrl
-      break;
+     case 'B':  cmd = cmUseBottom;  break;
+     case 'T':  cmd = cmUseTop;     break;
+
+     case KEY_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
+     case KEY_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
+     case KEY_NPAGE:  cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
+     case KEY_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
+     case KEY_UP:     cmd = cmmMove|cmmMoveLine;                 break;
+     case KEY_PPAGE:  cmd = cmmMove|cmmMovePage;                 break;
+     case KEY_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
     } // end switch ASCII code
   } // end while no command
+
+  if (cmd & cmmMove) {
+    if (lockState != lockTop)    cmd |= cmmMoveTop;
+    if (lockState != lockBottom) cmd |= cmmMoveBottom;
+  } // end if move command
 
   return cmd;
 } // end getCommand
@@ -812,6 +762,7 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
+#if 0
   inWin.move((screenWidth-inWidth-2)/2,
              ((cmd & cmgGotoBottom)
               ? ((cmd & cmgGotoTop) ? 10 : 15)
@@ -867,6 +818,7 @@ void gotoPosition(Command cmd)
     file1.moveTo(pos);
   if (cmd & cmgGotoBottom)
     file2.moveTo(pos);
+#endif
 } // end gotoPosition
 
 //--------------------------------------------------------------------
@@ -895,14 +847,32 @@ void handleCmd(Command cmd)
       else
         file2.moveTo(0);
   } // end if move
-  else if ((cmd & cmgGoto) == cmgGoto)
+  else if ((cmd & cmgGotoMask) == cmgGoto)
     gotoPosition(cmd);
   else if (cmd == cmNextDiff) {
+    if (lockState) {
+      lockState = lockNeither;
+      displayLockState();
+    }
     do {
       file1.move(bufSize);
       file2.move(bufSize);
     } while (!diffs.compute());
   } // end else if cmNextDiff
+  else if (cmd == cmUseTop) {
+    if (lockState == lockBottom)
+      lockState = lockNeither;
+    else
+      lockState = lockBottom;
+    displayLockState();
+  }
+  else if (cmd == cmUseBottom) {
+    if (lockState == lockTop)
+      lockState = lockNeither;
+    else
+      lockState = lockTop;
+    displayLockState();
+  }
   else if (cmd == cmEditTop)
     file1.edit(&file2);
   else if (cmd == cmEditBottom)
@@ -997,8 +967,8 @@ void processOptions(int& argc, char**& argv)
   static const GetOpt::Option options[] =
   {
     { '?', "help",       NULL, 0, &usage },
-    { 0,   "license",    NULL, 0, &license },
-    { 0,   "version",    NULL, 0, &usage },
+    { 'L', "license",    NULL, 0, &license },
+    { 'V', "version",    NULL, 0, &usage },
     { 0 }
   };
 
@@ -1032,7 +1002,7 @@ int main(int argc, char* argv[])
     usage(1);
 
   cout << "\
-VBinDiff $Revision: 2.0 $, Copyright 1995-7 Christopher J. Madsen\n\
+VBinDiff " PACKAGE_VERSION ", Copyright 1995-2005 Christopher J. Madsen\n\
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   if (!initialize()) {
@@ -1040,8 +1010,7 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
     return 1;
   }
 
-  char  error[80] = "";
-  ostrstream errMsg(error, sizeof(error));
+  ostringstream errMsg;
 
   if (!file1.setFile(argv[1]))
     errMsg << "Unable to open " << argv[1];
@@ -1060,12 +1029,14 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   file1.shutDown();
   file2.shutDown();
+  inWin.close();
+  promptWin.close();
 
   ConWindow::shutdown();
 
-  if (*error) {
-    errMsg << '\n' << '\0';
-    cerr << '\n' << program_name << ": " << error;
+  string error(errMsg.str());
+  if (error.length()) {
+    cerr << '\n' << program_name << ": " << error << endl;
     return 1;
   }
   return 0;

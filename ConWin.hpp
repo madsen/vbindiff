@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4585 2004-10-26 00:23:00Z cjm $
+// $Id: ConWin.hpp 4592 2005-03-12 17:11:36Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -13,51 +13,55 @@
 
 #define __CONWIN_HPP
 
-#define F_BLACK 0
-#define F_RED   FOREGROUND_RED
-#define F_WHITE (FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE)
-#define F_YELLOW (FOREGROUND_GREEN|FOREGROUND_RED)
-#define B_BLUE  BACKGROUND_BLUE
-#define B_WHITE (BACKGROUND_RED|BACKGROUND_GREEN|BACKGROUND_BLUE)
+#include <panel.h>
+#undef border
 
+enum Style {
+  cBackground = 0,
+  cPromptWin,
+  cPromptKey,
+  cPromptBdr,
+  cLocked,
+  cFileName,
+  cFileWin,
+  cFileDiff,
+  cFileEdit
+};
 
 class ConWindow
 {
  public:
-  static HANDLE inBuf;
-  static HANDLE scrBuf;
 
  protected:
-  COORD  size;
-  COORD  pos;
-  WORD   attribs;
-  PCHAR_INFO  data;
+  PANEL   *pan;
+  WINDOW  *win;
 
  public:
   ConWindow();
   ~ConWindow();
-  void init(short x, short y, short width, short height, WORD attrib);
+  void init(short x, short y, short width, short height, Style style);
+  void close();
 
-  void boxSingle(short x, short y, short width, short height);
-  void clear();
-  void move(short x, short y) { pos.X = x; pos.Y = y; };
+  void border() { ::box(win, 0, 0); };
+  void clear()  {   werase(win);    };
+  void move(short x, short y) { move_panel(pan, y, x); };
 ///void put(short x, short y, const String& s);
-  void put(short x, short y, const char* s);
-  void putAttribs(short x, short y, WORD color, short count);
+  void put(short x, short y, const char* s) { mvwaddstr(win, y, x, s); };
+  void putAttribs(short x, short y, Style color, short count);
   void putChar(short x, short y, char c, short count);
-  void setAttribs(WORD color) { attribs = color; };
+  int  readKey();
+  void setAttribs(Style color);
   void setCursor(short x, short y);
-  void update();
+  void update() {};
 
-  static void hideCursor();
-  static void readKey(KEY_EVENT_RECORD& event);
-  static void showCursor();
+  void hide() { hide_panel(pan); };
+  void show() { show_panel(pan); };
+
+  static void hideCursor() { curs_set(0); };
+  static void showCursor() { curs_set(1); };
   static void shutdown();
   static bool startup();
 
- protected:
-  void box(short x, short y, short width, short height,
-           char tl, char tr, char bl, char br, char horiz, char vert);
 }; // end ConWindow
 
 #endif // __CONWIN_HPP

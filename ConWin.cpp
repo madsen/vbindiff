@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4585 2004-10-26 00:23:00Z cjm $
+// $Id: ConWin.cpp 4592 2005-03-12 17:11:36Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -9,20 +9,44 @@
 //
 //--------------------------------------------------------------------
 
-#include "StdAfx.h"
+#include <stdlib.h>
 
 #include "ConWin.hpp"
 
-static const COORD ZeroC = {0, 0};
+enum ColorPair {
+  pairWhiteBlue= 1,
+  pairBlackWhite,
+  pairRedBlue,
+  pairYellowBlue
+};
+
+static const ColorPair colorStyle[] = {
+  pairWhiteBlue,   // cBackground
+  pairWhiteBlue,   // cPromptWin
+  pairWhiteBlue,   // cPromptKey
+  pairWhiteBlue,   // cPromptBdr
+  pairBlackWhite,  // cLocked
+  pairBlackWhite,  // cFileName
+  pairWhiteBlue,   // cFileWin
+  pairRedBlue,     // cFileDiff
+  pairYellowBlue   // cFileEdit
+};
+
+static const attr_t attribStyle[] = {
+           COLOR_PAIR(colorStyle[ cBackground ]),
+           COLOR_PAIR(colorStyle[ cPromptWin  ]),
+  A_BOLD | COLOR_PAIR(colorStyle[ cPromptKey  ]),
+  A_BOLD | COLOR_PAIR(colorStyle[ cPromptBdr  ]),
+           COLOR_PAIR(colorStyle[ cLocked     ]),
+           COLOR_PAIR(colorStyle[ cFileName   ]),
+           COLOR_PAIR(colorStyle[ cFileWin    ]),
+  A_BOLD | COLOR_PAIR(colorStyle[ cFileDiff   ]),
+  A_BOLD | COLOR_PAIR(colorStyle[ cFileEdit   ])
+};
 
 //====================================================================
 // Class ConWindow:
 //--------------------------------------------------------------------
-HANDLE  ConWindow::inBuf  = INVALID_HANDLE_VALUE;
-HANDLE  ConWindow::scrBuf = INVALID_HANDLE_VALUE;
-
-static DWORD  origInMode = 0;    // The original input mode
-
 //////////////////////////////////////////////////////////////////////
 // Static Member Functions:
 //--------------------------------------------------------------------
@@ -36,25 +60,28 @@ static DWORD  origInMode = 0;    // The original input mode
 
 bool ConWindow::startup()
 {
-  inBuf = GetStdHandle(STD_INPUT_HANDLE);
-  if (inBuf == INVALID_HANDLE_VALUE)
-    return false;
+  if (!initscr()) return false; // initialize the curses library
+  atexit(ConWindow::shutdown);  // just in case
 
-  scrBuf = CreateConsoleScreenBuffer(GENERIC_READ|GENERIC_WRITE,
-                                     0, NULL, // No sharing
-                                     CONSOLE_TEXTMODE_BUFFER, NULL);
+  keypad(stdscr, TRUE);  /* enable keyboard mapping */
+  nonl();         /* tell curses not to do NL->CR/NL on output */
+  cbreak();       /* take input chars one at a time, no wait for \n */
+  noecho();         /* echo input - in color */
 
-  if (scrBuf == INVALID_HANDLE_VALUE)
-    return false;
+  if (!has_colors()) return false; // FIXME
 
-  if (!SetConsoleActiveScreenBuffer(scrBuf)) {
-    CloseHandle(scrBuf);
-    return false;
-  }
+  start_color();
 
-  GetConsoleMode(inBuf, &origInMode);
-  SetConsoleMode(inBuf, 0);
-  SetConsoleMode(scrBuf, 0);
+  /*
+   * Simple color assignment, often all we need.  Color pair 0 cannot
+   * be redefined.  This example uses the same value for the color
+   * pair as for the foreground color, though of course that is not
+   * necessary:
+   */
+  init_pair(pairWhiteBlue,  COLOR_WHITE,  COLOR_BLUE);
+  init_pair(pairBlackWhite, COLOR_BLACK,  COLOR_WHITE);
+  init_pair(pairRedBlue,    COLOR_RED,    COLOR_BLUE);
+  init_pair(pairYellowBlue, COLOR_YELLOW, COLOR_BLUE);
 
   return true;
 } // end ConWindow::startup
@@ -66,60 +93,11 @@ bool ConWindow::startup()
 
 void ConWindow::shutdown()
 {
-  if (origInMode)
-    SetConsoleMode(inBuf, origInMode);
-  if (scrBuf != INVALID_HANDLE_VALUE)
-    CloseHandle(scrBuf);
-  scrBuf = INVALID_HANDLE_VALUE;
+  if (!isendwin()) {
+    showCursor();
+    endwin();
+  }
 } // end ConWindow::shutdown
-
-//--------------------------------------------------------------------
-// Make the cursor invisible:
-
-void ConWindow::hideCursor()
-{
-  CONSOLE_CURSOR_INFO  info;
-
-  if (GetConsoleCursorInfo(scrBuf, &info)) {
-    info.bVisible = FALSE;
-    SetConsoleCursorInfo(scrBuf, &info);
-  }
-} // end ConWindow::hideCursor
-
-//--------------------------------------------------------------------
-// Read the next key down event:
-//
-// Output:
-//   event:  Contains a key down event
-
-void ConWindow::readKey(KEY_EVENT_RECORD& event)
-{
-  INPUT_RECORD  e;
-
-  for (;;) {
-    DWORD  count = 0;
-    while (!count)
-      ReadConsoleInput(inBuf, &e, 1, &count);
-
-    if ((e.EventType == KEY_EVENT) && e.Event.KeyEvent.bKeyDown) {
-      event = e.Event.KeyEvent;
-      return;
-    }
-  } // end forever
-} // end ConWindow::readKey
-
-//--------------------------------------------------------------------
-// Make the cursor visible:
-
-void ConWindow::showCursor()
-{
-  CONSOLE_CURSOR_INFO  info;
-
-  if (GetConsoleCursorInfo(scrBuf, &info)) {
-    info.bVisible = TRUE;
-    SetConsoleCursorInfo(scrBuf, &info);
-  }
-} // end ConWindow::showCursor
 
 //////////////////////////////////////////////////////////////////////
 // Member Functions:
@@ -127,7 +105,8 @@ void ConWindow::showCursor()
 // Constructor:
 
 ConWindow::ConWindow()
-: data(NULL)
+: pan(NULL),
+  win(NULL)
 {
 } // end ConWindow::ConWindow
 
@@ -136,7 +115,7 @@ ConWindow::ConWindow()
 
 ConWindow::~ConWindow()
 {
-  delete[] data;
+  close();
 } // end ConWindow::~ConWindow
 
 //--------------------------------------------------------------------
@@ -151,93 +130,34 @@ ConWindow::~ConWindow()
 //   width,height:  The size of the window
 //   attrib:        The default attributes for the window
 
-void ConWindow::init(short x, short y, short width, short height, WORD attrib)
+void ConWindow::init(short x, short y, short width, short height, Style attrib)
 {
-  ASSERT(data == NULL);
-  attribs = attrib;
-  pos.X  = x;
-  pos.Y  = y;
-  size.X = width;
-  size.Y = height;
+  if ((win = newwin(height, width, y, x)) == 0)
+    exit(98);                   // FIXME
 
-  data = new CHAR_INFO[size.X * size.Y];
+  if ((pan = new_panel(win)) == 0)
+    exit(99);                 // FIXME
+
+  wbkgdset(win, attribStyle[attrib] | ' ');
+
+  keypad(win, TRUE);            // enable keyboard mapping
 
   clear();
 } // end ConWindow::init
 
 //--------------------------------------------------------------------
-// Draw a box in the window:
-//
-// Input:
-//   x,y:           The upper left corner of the box in the window
-//   width,height:  The size of the box
-//   tl,tr:         The characters for the top left & top right corners
-//   bl,br:         The characters for the bottom left & right corners
-//   horiz:         The character for horizontal lines
-//   vert:          The character for vertical lines
-
-void ConWindow::box(short x, short y, short width, short height,
-                    char tl, char tr, char bl, char br, char horiz, char vert)
+void ConWindow::close()
 {
-  ASSERT((height > 1) && (width > 1));
-
-  PCHAR_INFO  c1 = data + x + size.X * y;
-  PCHAR_INFO  c  = c1;
-  PCHAR_INFO  c2 = c1 + width - 1;
-
-  c1->Char.AsciiChar = tl;
-  c1->Attributes = attribs;
-  c2->Char.AsciiChar = tr;
-  c2->Attributes = attribs;
-
-  while (++c < c2) {
-    c->Char.AsciiChar = horiz;
-    c->Attributes = attribs;
+  if (pan) {
+    del_panel(pan);
+    pan = NULL;
   }
 
-  c  =  c1 + size.X * (height-1);
-  for (;;) {
-    c1 += size.X;
-    c2 += size.X;
-    if (c1 == c) break;
-    c1->Char.AsciiChar = c2->Char.AsciiChar = vert;
-    c1->Attributes = c2->Attributes = attribs;
+  if (win) {
+    delwin(win);
+    win = NULL;
   }
-
-  c1->Char.AsciiChar = bl;
-  c1->Attributes = attribs;
-  c2->Char.AsciiChar = br;
-  c2->Attributes = attribs;
-
-  while (++c1 < c2) {
-    c1->Char.AsciiChar = horiz;
-    c1->Attributes = attribs;
-  }
-} // end ConWindow::box
-
-//--------------------------------------------------------------------
-// Draw a box with a single line:
-//
-// Input:
-//   x,y:           The upper left corner of the box in the window
-//   width,height:  The size of the box
-
-void ConWindow::boxSingle(short x, short y, short width, short height)
-{
-  box(x,y,width,height, '\332','\277', '\300','\331', '\304', '\263');
-} // end ConWindow::boxSingle
-
-//--------------------------------------------------------------------
-// Clear the window:
-
-void ConWindow::clear()
-{
-  PCHAR_INFO  c = data;
-  for (int i = size.X * size.Y; i > 0; ++c, --i) {
-    c->Char.AsciiChar = ' ';
-    c->Attributes = attribs;
-  }
-} // end ConWindow::clear
+} // end ConWindow::close
 
 //--------------------------------------------------------------------
 // Write a string using the current attributes:
@@ -246,17 +166,7 @@ void ConWindow::clear()
 //   x,y:  The start of the string in the window
 //   s:    The string to write
 
-void ConWindow::put(short x, short y, const char* s)
-{
-  PCHAR_INFO  out = data + x + size.X * y;
-
-  while (*s) {
-    out->Char.AsciiChar = *s;
-    out->Attributes = attribs;
-    ++out;
-    ++s;
-  }
-} // end ConWindow::put
+//void ConWindow::put(short x, short y, const char* s)
 
 ///void ConWindow::put(short x, short y, const String& s)
 ///{
@@ -279,12 +189,10 @@ void ConWindow::put(short x, short y, const char* s)
 //   color:  The attribute to set
 //   count:  The number of characters to change
 
-void ConWindow::putAttribs(short x, short y, WORD color, short count)
+void ConWindow::putAttribs(short x, short y, Style color, short count)
 {
-  PCHAR_INFO  c = data + x + size.X * y;
-
-  while (count--)
-    (c++)->Attributes = color;
+  mvwchgat(win, y, x, count, attribStyle[color], colorStyle[color], NULL);
+  touchwin(win);
 } // end ConWindow::putAttribs
 
 //--------------------------------------------------------------------
@@ -297,13 +205,32 @@ void ConWindow::putAttribs(short x, short y, WORD color, short count)
 
 void ConWindow::putChar(short x, short y, char c, short count)
 {
-  PCHAR_INFO  ci = data + x + size.X * y;
+  wmove(win, y, x);
 
   while (count--) {
-    ci->Char.AsciiChar = c;
-    (ci++)->Attributes = attribs;
+    waddch(win, c);
   }
 } // end ConWindow::putAttribs
+
+//--------------------------------------------------------------------
+// Read the next key down event:
+//
+// Output:
+//   event:  Contains a key down event
+
+int ConWindow::readKey()
+{
+  update_panels();
+  doupdate();
+
+  return wgetch(win);
+} // end ConWindow::readKey
+
+//--------------------------------------------------------------------
+void ConWindow::setAttribs(Style color)
+{
+  wattrset(win, attribStyle[color]);
+} // end ConWindow::setAttribs
 
 //--------------------------------------------------------------------
 // Position the cursor in the window:
@@ -316,25 +243,7 @@ void ConWindow::putChar(short x, short y, char c, short count)
 
 void ConWindow::setCursor(short x, short y)
 {
-  ASSERT((x>=0)&&(x<size.X)&&(y>=0)&&(y<size.Y));
-  COORD c;
-  c.X = x + pos.X;
-  c.Y = y + pos.Y;
-  SetConsoleCursorPosition(scrBuf, c);
+//  ASSERT((x>=0)&&(x<size.X)&&(y>=0)&&(y<size.Y));
+
+  wmove(win, y, x);
 } // end ConWindow::setCursor
-
-//--------------------------------------------------------------------
-// Display the window on the screen:
-//
-// This is the only function that actually displays anything.
-
-void ConWindow::update()
-{
-  SMALL_RECT r;
-  r.Left   = pos.X;
-  r.Top    = pos.Y;
-  r.Right  = pos.X + size.X - 1;
-  r.Bottom = pos.Y + size.Y - 1;
-
-  WriteConsoleOutput(scrBuf, data, size, ZeroC, &r);
-} // end ConWindow::update
