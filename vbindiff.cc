@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.3 1995/11/28 22:50:48 Madsen Exp $
+// $Id: vbindiff.cc,v 1.4 1996/01/15 23:32:58 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary DIFF
@@ -29,6 +29,8 @@
 #include <fstream.h>
 #include <sys/winmgr.h>
 #include <sys/kbdscan.h>
+
+#include "getopt.h"
 
 //====================================================================
 // Type definitions:
@@ -155,6 +157,7 @@ template <class T> inline const T& max(const T& t1, const T& t2)
 wm_handle    bgWin, promptWin;
 FileDisplay  file1, file2;
 Difference   diffs(&file1, &file2);
+const char*  program_name; // Name under which this program was invoked
 
 //====================================================================
 // Class Difference:
@@ -205,7 +208,8 @@ int Difference::compute()
 
   int  size = min(file1->bufContents, file2->bufContents);
 
-  for (int i = 0; i < size; i++)
+  int  i;
+  for (i = 0; i < size; i++)
     if (*(buf1++) != *(buf2++)) {
       table[i] = True;
       ++different;
@@ -475,6 +479,29 @@ Boolean initialize()
 } // end initialize
 
 //--------------------------------------------------------------------
+// Display usage information and exit:
+//
+// Input:
+//   status:
+//     The desired exit status
+//       If status is 0 or 1, prints complete usage information
+//       If status is > 1, prints only "try --help" message
+
+static void usage(int status)
+{
+  if (status > 1)
+    cerr << "Try `" << program_name << " --help' for more information.\n";
+  else {
+    cout << "Usage: " << program_name << " [OPTIONS] FILE1 FILE2
+Compare FILE1 and FILE2 byte by byte.
+
+      --help               display this help and exit
+      -V, --version        output version information and exit\n";
+  }
+  exit(status);
+} // end usage
+
+//--------------------------------------------------------------------
 // Get a command from the keyboard:
 //
 // Returns:
@@ -607,13 +634,54 @@ void handleCmd(Command cmd)
 //--------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-  if (argc != 3) {
-    fputs("Usage: vbindiff file1 file2\n",stderr);
-    return 1;
+  /* If non-zero, display usage information and exit.  */
+  static int show_help;
+
+  /* If non-zero, print the version on standard output then exit.  */
+  static int show_version;
+
+  static struct option const long_options[] = {
+    {"help", no_argument, &show_help, 1},
+    {"version", no_argument, &show_version, 1},
+    {NULL, 0, NULL, 0}
+  };
+
+  if ((program_name = strrchr(argv[0], '\\')) ||
+      (program_name = strrchr(argv[0], '/')))
+    ++program_name;
+  else
+    program_name = argv[0];
+
+  // Parse command line options:
+  int c;
+  while ((c = getopt_long(argc, argv, "V", long_options, (int *)0))
+	 != EOF) {
+    switch (c) {
+     case 0:
+      break;
+
+     case 'V':
+      show_version = 1;
+      break;
+
+     default:
+      usage(2);
+    } // end switch
+  } // end while options
+
+  if (show_version) {
+      cerr << "VBinDiff $Revision: 1.4 $\n";
+      exit(0);
   }
 
+  if (show_help)
+    usage(0);
+
+  if (argc != 3)
+    usage(1);
+
   if (!initialize()) {
-    fputs("Unable to initialize windows\n",stderr);
+    cerr << program_name << ": Unable to initialize windows\n";
     return 1;
   }
 
