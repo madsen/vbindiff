@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4620 2005-03-25 19:59:42Z cjm $
+// $Id: vbindiff.cpp 4623 2005-03-28 15:42:08Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -857,7 +857,7 @@ void exitMsg(int status, const char* message)
 //   upcase:    If true, convert all chars with toupper
 
 void getString(char* buf, int maxLen, const char* restrict=NULL,
-               bool upcase=false)
+               bool upcase=false, bool splitHex=false)
 {
   inWin.setCursor(2,1);
   ConWindow::showCursor();
@@ -883,12 +883,18 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
      case KEY_DC:
      case KEY_LEFT:
      case KEY_DELETE:
-     case 0x08:  if (!i) continue;  buf[--i] = ' ';  break; // Backspace
+     case 0x08:                 // Backspace
+      if (!i) continue;
+      if (splitHex && buf[i-1] == ' ') --i;
+      buf[--i] = ' ';
+      break;
 
      default:
       if (isprint(key) && (!restrict || strchr(restrict, key))) {
         if (i >= maxLen) continue;
         buf[i++] = key;
+        if (splitHex && (i < maxLen) && (i % 3 == 2))
+          ++i;
       }
     } // end switch key
   } // end while
@@ -896,6 +902,38 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
   ConWindow::hideCursor();
   inWin.hide();
 } // end getString
+
+//--------------------------------------------------------------------
+// Convert hex string to bytes:
+//
+// Input:
+//   buf:  Must contain a well-formed string of hex characters
+//         (each byte must be separated by spaces)
+//
+// Output:
+//   buf:  Contains the translated bytes
+//
+// Returns:
+//   The number of bytes in buf
+
+int packHex(Byte* buf)
+{
+  unsigned long val;
+
+  char* in  = reinterpret_cast<char*>(buf);
+  Byte* out = buf;
+
+  while (*in) {
+    if (*in == ' ')
+      ++in;
+    else {
+      val = strtoul(in, &in, 16);
+      *(out++) = Byte(val);
+    }
+  }
+
+  return out - buf;
+} // end packHex
 
 //--------------------------------------------------------------------
 // Position the input window:
@@ -907,13 +945,13 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
 
 void positionInWin(Command cmd, short width, const char* title)
 {
+  inWin.resize(width, 3);
   inWin.move((screenWidth-width)/2,
              ((cmd & cmgGotoBottom)
               ? ((cmd & cmgGotoTop)
                  ? numLines + linesBetween                   // Moving both
                  : numLines + numLines/2 + 1 + linesBetween) // Moving bottom
               : numLines/2));                                // Moving top
-  inWin.resize(width, 3);
 
   inWin.border();
   inWin.put((width-strlen(title))/2,0, title);
@@ -1200,21 +1238,43 @@ void gotoPosition(Command cmd)
 
 void searchFiles(Command cmd)
 {
-  positionInWin(cmd, screenWidth, " Find ");
+  positionInWin(cmd, 32, " Find ");
+
+  inWin.put(2, 1,"H Hex search   T Text search");
+  inWin.putAttribs( 2,1, cPromptKey, 1);
+  inWin.putAttribs(17,1, cPromptKey, 1);
+  inWin.update();
+  int key = inWin.readKey();
+
+  bool hex = false;
+
+  if (key == KEY_ESCAPE) {
+    inWin.hide();
+    return;
+  } else if (toupper(key) == 'H')
+    hex = true;
+
+  positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
 
   const int  maxLen = screenWidth-4;
   Byte  buf[maxLen+1];
+  int   searchLen;
 
-  getString(reinterpret_cast<char*>(buf), maxLen);
+  if (hex) {
+    getString(reinterpret_cast<char*>(buf), maxLen, "0123456789ABCDEF",
+              true, true);
+    searchLen = packHex(buf);
+  } else {
+    getString(reinterpret_cast<char*>(buf), maxLen);
 
-  int searchLen = strlen(reinterpret_cast<char*>(buf));
+    searchLen = strlen(reinterpret_cast<char*>(buf));
+    if (displayTable == ebcdicDisplayTable) {
+      for (int i = 0; i < searchLen; ++i)
+        buf[i] = ascii2ebcdicTable[buf[i]];
+    } // end if in EBCDIC mode
+  } // end else text search
 
   if (!searchLen) return;
-
-  if (displayTable == ebcdicDisplayTable) {
-    for (int i = 0; i < searchLen; ++i)
-      buf[i] = ascii2ebcdicTable[buf[i]];
-  } // end if in EBCDIC mode
 
   if (cmd & cmgGotoTop)
     file1.moveTo(buf, searchLen);
