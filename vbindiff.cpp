@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4598 2005-03-15 22:11:20Z cjm $
+// $Id: vbindiff.cpp 4599 2005-03-16 17:02:08Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -206,6 +206,7 @@ class FileDisplay
   const Byte*  getBuffer() const { return data->buffer; };
   void         move(int step)    { moveTo(offset + streampos(step)); };
   void         moveTo(streampos newOffset);
+  void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
  protected:
   void  setByte(short x, short y, Byte b);
@@ -689,6 +690,35 @@ void FileDisplay::moveTo(streampos newOffset)
 } // end FileDisplay::moveTo
 
 //--------------------------------------------------------------------
+// Move to the end of the file:
+//
+// Input:
+//   other:  If non NULL, move both files to the end of the shorter file
+
+void FileDisplay::moveToEnd(FileDisplay* other)
+{
+  if (!fileName[0]) return;     // No file
+
+  if (file.fail())
+    file.clear();
+
+  streampos  end = file.rdbuf()->pubseekoff(0, ios_base::end);
+
+  if (other) {
+    if (other->file.fail())
+      other->file.clear();
+
+    end = min(end, other->file.rdbuf()->pubseekoff(0, ios_base::end));
+  } // end if moving other file too
+
+  end -= steps[cmmMovePage];
+  end -= end % 0x10;
+
+  moveTo(end);
+  if (other) other->moveTo(end);
+} // end FileDisplay::moveToEnd
+
+//--------------------------------------------------------------------
 // Open a file for display:
 //
 // Opens the file, updates the filename display, and reads the start
@@ -917,6 +947,7 @@ Command getCommand()
      case KEY_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
      case KEY_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
      case KEY_NPAGE:  cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
+     case KEY_END:    cmd = cmmMove|cmmMoveAll|cmmMoveForward;   break;
      case KEY_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
      case KEY_UP:     cmd = cmmMove|cmmMoveLine;                 break;
      case KEY_PPAGE:  cmd = cmmMove|cmmMovePage;                 break;
@@ -1007,17 +1038,24 @@ void handleCmd(Command cmd)
     if ((cmd & cmmMoveForward) == 0)
       step *= -1;               // We're moving backward
 
-    if (cmd & cmmMoveTop)
-      if (step)
-        file1.move(step);
+    if ((cmd & cmmMoveForward) && !step) {
+      if (cmd & cmmMoveTop)
+        file1.moveToEnd((!singleFile && (cmd & cmmMoveBottom)) ? &file2 : NULL);
       else
-        file1.moveTo(0);
+        file2.moveToEnd(NULL);
+    } else {
+      if (cmd & cmmMoveTop)
+        if (step)
+          file1.move(step);
+        else
+          file1.moveTo(0);
 
-    if (cmd & cmmMoveBottom)
-      if (step)
-        file2.move(step);
-      else
-        file2.moveTo(0);
+      if (cmd & cmmMoveBottom)
+        if (step)
+          file2.move(step);
+        else
+          file2.moveTo(0);
+    } // end else not moving to end
   } // end if move
   else if ((cmd & cmgGotoMask) == cmgGoto)
     gotoPosition(cmd);
@@ -1188,16 +1226,18 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
     return 1;
   }
 
-  ostringstream errMsg;
+  {
+    ostringstream errMsg;
 
-  if (!file1.setFile(argv[1]))
-    errMsg << "Unable to open " << argv[1];
-  else if (!singleFile && !file2.setFile(argv[2]))
-    errMsg << "Unable to open " << argv[2];
+    if (!file1.setFile(argv[1]))
+      errMsg << "Unable to open " << argv[1];
+    else if (!singleFile && !file2.setFile(argv[2]))
+      errMsg << "Unable to open " << argv[2];
 
-  string error(errMsg.str());
-  if (error.length())
-    exitMsg(1, error.c_str());
+    string error(errMsg.str());
+    if (error.length())
+      exitMsg(1, error.c_str());
+  } // end block around errMsg
 
   diffs.compute();
 
