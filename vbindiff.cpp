@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4618 2005-03-24 05:05:56Z cjm $
+// $Id: vbindiff.cpp 4619 2005-03-25 17:45:09Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -647,7 +647,76 @@ void FileDisplay::moveTo(streampos newOffset)
 
 bool FileDisplay::moveTo(Byte* searchFor, int searchLen)
 {
-  return false;
+  if (!fileName[0]) return false; // No file
+
+  // Using algorithm based on QuickSearch:
+  //   http://www-igm.univ-mlv.fr/~lecroq/string/node19.htm
+
+  // Compute offset table:
+  int i;
+  int moveOver[256];
+
+  for (i = 0; i < 256; ++i)
+    moveOver[i] = searchLen + 1;
+  for (i = 0; i < searchLen; ++i)
+    moveOver[searchFor[i]] = searchLen - i;
+
+  // Prepare the search buffer:
+
+  const int
+    blockSize  = 8 * 1024,
+    moveLength = searchLen,
+    restartAt  = blockSize - moveLength,
+    fullStop   = blockSize * 2 - moveLength;
+
+  Byte *const  searchBuf = new Byte[2 * blockSize];
+
+  Byte *const  copyTo         = searchBuf + restartAt;
+  const Byte *const copyFrom  = searchBuf + fullStop;
+
+  char *const  readAt = reinterpret_cast<char*>(searchBuf) + blockSize;
+
+  if (file.fail())
+    file.clear();
+
+  streamoff  delta = 1;
+
+  file.seekg(offset + delta);
+  file.read(reinterpret_cast<char*>(searchBuf), blockSize * 2);
+  int stopAt = file.gcount() - moveLength;
+
+  // Start the search:
+  i = 0;
+  for (;;) {
+    if (stopAt < fullStop) ++stopAt;
+
+    while (i < stopAt) {
+      if (memcmp(searchFor, searchBuf + i, searchLen) == 0)
+        goto done;
+
+      i += moveOver[searchBuf[i + searchLen]]; // shift
+    } // end while more buffer to search
+
+    if (stopAt != fullStop) {
+      i = -1;
+      goto done;
+    } // Nothing more to read
+
+    delta += blockSize;
+    i -= blockSize;
+    memcpy(copyTo, copyFrom, moveLength);
+    file.read(readAt, blockSize);
+    stopAt = file.gcount() + blockSize - moveLength;
+  } // end forever
+
+ done:
+  delete [] searchBuf;
+
+  if (i < 0) return false;      // No match
+
+  moveTo(offset + (delta + i));
+
+  return true;
 } // end FileDisplay::moveTo
 
 //--------------------------------------------------------------------
