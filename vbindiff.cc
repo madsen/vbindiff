@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.2 1995/11/27 04:16:26 Madsen Exp $
+// $Id: vbindiff.cc,v 1.3 1995/11/28 22:50:48 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary DIFF
@@ -7,6 +7,19 @@
 //
 //   Visual display of differences in binary files
 //
+//   This program is free software; you can redistribute it and/or
+//   modify it under the terms of the GNU General Public License as
+//   published by the Free Software Foundation; either version 2 of
+//   the License, or (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU General Public License for more details.
+//
+//   You should have received a copy of the GNU General Public License
+//   along with this program; if not, write to the Free Software
+//   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 //--------------------------------------------------------------------
 
 #include <ctype.h>
@@ -15,7 +28,7 @@
 #include <string.h>
 #include <fstream.h>
 #include <sys/winmgr.h>
-#include <sys/kbdscan.h>  /* optional, for extended scan codes */
+#include <sys/kbdscan.h>
 
 //====================================================================
 // Type definitions:
@@ -45,10 +58,10 @@ const Command  cmmMoveForward = 0x04;
 const Command  cmmMoveTop     = 0x08;
 const Command  cmmMoveBottom  = 0x10;
 
-const Command  cmmMoveByte    = 0x00;
-const Command  cmmMoveLine    = 0x01;
-const Command  cmmMovePage    = 0x02;
-const Command  cmmMoveAll     = 0x03;
+const Command  cmmMoveByte    = 0x00; // Move 1 byte
+const Command  cmmMoveLine    = 0x01; // Move 1 line
+const Command  cmmMovePage    = 0x02; // Move 1 page
+const Command  cmmMoveAll     = 0x03; // Not used
 
 const Command  cmmMoveBoth    = cmmMoveTop|cmmMoveBottom;
 
@@ -56,12 +69,14 @@ const Command  cmNothing      = 0;
 const Command  cmNextDiff     = 1;
 const Command  cmQuit         = 2;
 
-const int  numLines  = 9;
-const int  lineWidth = 16;
+const int  numLines  = 9;       // Number of lines of each file to display
+const int  lineWidth = 16;      // Number of bytes displayed per line
 const int  bufSize   = numLines * lineWidth;
 
 const int  maxPath = 260;
 
+// The number of bytes to move for each possible step size:
+//   See cmmMoveByte, cmmMoveLine, cmmMovePage
 const int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 
 //====================================================================
@@ -143,8 +158,22 @@ Difference   diffs(&file1, &file2);
 
 //====================================================================
 // Class Difference:
+//
+// Member Variables:
+//   file1, file2:
+//     The FileDisplay objects being compared
+//   numDiffs:
+//     The number of differences between the two FileDisplay buffers
+//   line/table:
+//     An array of Booleans for each byte in the FileDisplay buffers
+//     True marks differences
+//
 //--------------------------------------------------------------------
 // Constructor:
+//
+// Input:
+//   aFile1, aFile2:
+//     Pointers to the FileDisplay objects to compare
 
 Difference::Difference(const FileDisplay* aFile1, const FileDisplay* aFile2)
 : file1(aFile1),
@@ -155,17 +184,19 @@ Difference::Difference(const FileDisplay* aFile1, const FileDisplay* aFile2)
 //--------------------------------------------------------------------
 // Compute differences:
 //
+// Input Variables:
+//   file1, file2:  The files to compare
+//
 // Returns:
 //   The number of differences between the buffers
 //   -1 if both buffers are empty
 //
 // Output Variables:
-//   numDiffs:
-//     The number of differences
+//   numDiffs:  The number of differences between the buffers
 
 int Difference::compute()
 {
-  memset(table, 0, sizeof(table));
+  memset(table, 0, sizeof(table)); // Clear the difference table
 
   int  different = 0;
 
@@ -183,9 +214,10 @@ int Difference::compute()
   size = max(file1->bufContents, file2->bufContents);
 
   if (i < size) {
+    // One buffer has more data than the other:
     different += size - i;
     for (; i < size; i++)
-      table[i] = True;
+      table[i] = True;          // These bytes are only in 1 buffer
   } else if (!size)
     return -1;                  // Both buffers are empty
 
@@ -253,7 +285,7 @@ void FileDisplay::init(int y, const Difference* aDiff,
 
   if (aFileName)
     setFile(aFileName);
-} // end FileDisplay::FileDisplay
+} // end FileDisplay::init
 
 //--------------------------------------------------------------------
 // Destructor:
