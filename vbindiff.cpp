@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4602 2005-03-18 16:14:48Z cjm $
+// $Id: vbindiff.cpp 4603 2005-03-21 16:48:16Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -762,7 +762,7 @@ void FileDisplay::moveToEnd(FileDisplay* other)
 //
 // Returns:
 //   True:   Operation successful
-//   False:  Unable to open file
+//   False:  Unable to open file (error number in errno)
 
 bool FileDisplay::setFile(const char* aFileName)
 {
@@ -1286,11 +1286,14 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
   {
     ostringstream errMsg;
 
-    if (!file1.setFile(argv[1]))
-      errMsg << "Unable to open " << argv[1];
-    else if (!singleFile && !file2.setFile(argv[2]))
-      errMsg << "Unable to open " << argv[2];
-
+    if (!file1.setFile(argv[1])) {
+      const char* errStr = strerror(errno);
+      errMsg << "Unable to open " << argv[1] << ": " << errStr;
+    }
+    else if (!singleFile && !file2.setFile(argv[2])) {
+      const char* errStr = strerror(errno);
+      errMsg << "Unable to open " << argv[2] << ": " << errStr;
+    }
     string error(errMsg.str());
     if (error.length())
       exitMsg(1, error.c_str());

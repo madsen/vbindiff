@@ -1,0 +1,74 @@
+=cut $Id: vbindiff.pod 4603 2005-03-21 16:48:16Z cjm $
+
+=head1 NAME
+
+vbindiff - hexadecimal file display and comparison
+
+=head1 SYNOPSIS
+
+B<vbindiff> I<file1> [ I<file2> ]
+
+=head1 DESCRIPTION
+
+Visual Binary Diff (VBinDiff) displays files in hexadecimal and ASCII
+(or EBCDIC).  It can also display two files at once, and highlight
+the differences between them.  Unlike B<diff>, it works well with
+large files (up to 4 GB).
+
+=head2 Viewing files
+
+Use the arrow keys to move through the file(s).  The up and down arrow
+keys move a line (16 bytes) at a time, and the left and right arrows
+move one byte at a time.  The Page Up and Page Down keys move a
+screenful at a time.  The Home key moves to the beginning, and the End
+key moves to the end.
+
+Normally, both files move together.  To move only the top file, press
+C<T>.  To move only the bottom file, press C<B>.  To return to moving
+both files, press the same key again.  (The window at the bottom of
+the screen will indicate when you are moving only one file.)
+
+The Enter key will advance to the next difference between the files
+(after those already displayed on the screen).  If there are no more
+differences, it moves to the end.
+
+Press C<G> to go to a given position in the file.  A window will pop
+up where you can enter the position (in hexadecimal).  Both files
+will move to the same position, unless you are in "move top" or
+"move bottom" mode.
+
+Press C<C> to toggle the display between ASCII and EBCDIC.  The
+current display mode will be hilighted at the bottom of the screen.
+
+=head2 Editing files
+
+You can press C<E> to edit the current file.  When displaying two
+files, this edits the one in the top window, unless you are in "move
+bottom" mode.
+
+When editing, you can move the cursor around with the arrow keys.  Use
+TAB to switch between entering hexadecimal or ASCII (or EBCDIC)
+characters.  Press the Esc when you are done.  You will be given the
+choice to save or discard your changes then.
+
+If you are displaying two files, you can use the Enter key to copy a
+byte from the other file into the one you are editing.
+
+You cannot scroll through the file while editing, although you can
+save your changes and then move to a different part of the file.
+Also, you cannot insert or delete bytes, only change them.
+
+=head1 OPTIONS
+
+ -L, --license   Display license information for vbindiff
+ -V, --version   Display the version number
+     --help      Display help information
+
+=head1 BUGS
+
+Does not work properly with files over 4 gigabytes.  Some iostream
+libraries can only handle files up to 2 gigabytes.
+
+=head1 AUTHOR
+
+Christopher J. Madsen <cjm .at. pobox.com>
