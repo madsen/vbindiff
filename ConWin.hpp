@@ -1,20 +1,20 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4595 2005-03-14 16:57:05Z cjm $
+// $Id: ConWin.hpp 4602 2005-03-18 16:14:48Z cjm $
 //--------------------------------------------------------------------
 //
-//   VBinDiff
-//   Copyright 1997 by Christopher J. Madsen
+//   Visual Binary Diff
+//   Copyright 1997-2005 by Christopher J. Madsen
 //
-//   Support class for console mode applications
+//   Support class for curses applications
 //
 //--------------------------------------------------------------------
 
-#ifndef __CONWIN_HPP
+#ifndef INCLUDED_CONWIN_HPP
 
-#define __CONWIN_HPP
+#define INCLUDED_CONWIN_HPP
 
 #include <panel.h>
-#undef border
+#undef border                 // It interferes with my member function
 
 #define KEY_ESCAPE 0x1B
 #define KEY_TAB    0x09
@@ -26,7 +26,7 @@ enum Style {
   cPromptWin,
   cPromptKey,
   cPromptBdr,
-  cLocked,
+  cCurrentMode,
   cFileName,
   cFileWin,
   cFileDiff,
@@ -35,8 +35,6 @@ enum Style {
 
 class ConWindow
 {
- public:
-
  protected:
   PANEL   *pan;
   WINDOW  *win;
@@ -69,4 +67,4 @@ class ConWindow
   static bool startup();
 }; // end ConWindow
 
-#endif // __CONWIN_HPP
+#endif // INCLUDED_CONWIN_HPP

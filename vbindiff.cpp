@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4601 2005-03-17 16:55:44Z cjm $
+// $Id: vbindiff.cpp 4602 2005-03-18 16:14:48Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -830,15 +830,24 @@ void calcScreenLayout(bool resize = true)
 } // end calcScreenLayout
 
 //--------------------------------------------------------------------
+void displayCharacterSet()
+{
+  const bool isASCII = (displayTable == asciiDisplayTable);
+
+  promptWin.putAttribs(3,2, (isASCII ? cCurrentMode : cBackground), 5);
+  promptWin.putAttribs(9,2, (isASCII ? cBackground : cCurrentMode), 6);
+} // end displayCharacterSet
+
+//--------------------------------------------------------------------
 void displayLockState()
 {
   if (singleFile) return;
 
   promptWin.putAttribs(63,1,
-                       ((lockState == lockBottom) ? cLocked : cBackground),
+                       ((lockState == lockBottom) ? cCurrentMode : cBackground),
                        8);
   promptWin.putAttribs(63,2,
-                       ((lockState == lockTop)    ? cLocked : cBackground),
+                       ((lockState == lockTop)    ? cCurrentMode : cBackground),
                        11);
 } // end displayLockState
 
@@ -863,13 +872,19 @@ void showEditPrompt()
 {
   promptWin.clear();
   promptWin.border();
-  promptWin.put(9,1, "\x3C\x5E\x76\x3E move cursor        TAB hex\x3C\x3E"
+  promptWin.put(3,1, "Arrow keys move cursor        TAB hex\x3C\x3E"
                 "ASCII       ESC done");
-  promptWin.put(25,2, "RET copy byte from other file");
-  promptWin.putAttribs( 9,1, cPromptKey, 4);
+  if (displayTable == ebcdicDisplayTable)
+    promptWin.put(42,1, "EBCDIC");
+
+  promptWin.putAttribs( 3,1, cPromptKey, 10);
   promptWin.putAttribs(33,1, cPromptKey, 3);
   promptWin.putAttribs(54,1, cPromptKey, 3);
-  promptWin.putAttribs(25,2, cPromptKey, 3);
+
+  if (!singleFile) {
+    promptWin.put(25,2, "RET copy byte from other file");
+    promptWin.putAttribs(25,2, cPromptKey, 3);
+  }
   promptWin.update();
 } // end showEditPrompt
 
@@ -880,20 +895,27 @@ void showPrompt()
 {
   promptWin.clear();
   promptWin.border();
-  promptWin.put(1,1, "\x3E fwd 1 byte   \x76 fwd 1 line"
-                "  RET next difference  ESC quit  T move top");
-  promptWin.put(1,2, "\x3C back 1 byte  \x5E back 1 line   G goto position"
-                "      Q quit  B move bottom");
-  promptWin.putAttribs( 1,1, cPromptKey, 1);
-  promptWin.putAttribs(16,1, cPromptKey, 1);
+  promptWin.put(1,1, "Arrow keys move              "
+                "RET next difference  ESC quit  T move top");
+  promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
+                "G goto position      Q quit  B move bottom");
+  promptWin.putAttribs( 1,1, cPromptKey, 10);
   promptWin.putAttribs(30,1, cPromptKey, 3);
   promptWin.putAttribs(51,1, cPromptKey, 3);
-  promptWin.putAttribs(61,1, cPromptKey, 1);
   promptWin.putAttribs( 1,2, cPromptKey, 1);
-  promptWin.putAttribs(16,2, cPromptKey, 1);
+  promptWin.putAttribs(18,2, cPromptKey, 1);
   promptWin.putAttribs(32,2, cPromptKey, 1);
   promptWin.putAttribs(53,2, cPromptKey, 1);
-  promptWin.putAttribs(61,2, cPromptKey, 1);
+  if (singleFile) {
+    // Erase "move top" & "move bottom":
+    promptWin.putChar(61,1, ' ', 10);
+    promptWin.putChar(61,2, ' ', 13);
+  } else {
+    promptWin.putAttribs(61,1, cPromptKey, 1);
+    promptWin.putAttribs(61,2, cPromptKey, 1);
+  }
+  displayCharacterSet();
+  displayLockState();
   promptWin.update();
 } // end showPrompt
 
@@ -974,8 +996,8 @@ Command getCommand()
 
      case 'C':  cmd = cmToggleASCII;  break;
 
-     case 'B':  cmd = cmUseBottom;    break;
-     case 'T':  cmd = cmUseTop;       break;
+     case 'B':  if (!singleFile) cmd = cmUseBottom;              break;
+     case 'T':  if (!singleFile) cmd = cmUseTop;                 break;
 
      case KEY_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
      case KEY_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
@@ -1120,6 +1142,7 @@ void handleCmd(Command cmd)
     displayTable = ((displayTable == asciiDisplayTable)
                     ? ebcdicDisplayTable
                     : asciiDisplayTable );
+    displayCharacterSet();
   }
   else if (cmd == cmEditTop)
     file1.edit(singleFile ? NULL : &file2);

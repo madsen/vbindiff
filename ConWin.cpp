@@ -1,11 +1,11 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4600 2005-03-16 20:51:00Z cjm $
+// $Id: ConWin.cpp 4602 2005-03-18 16:14:48Z cjm $
 //--------------------------------------------------------------------
 //
-//   VBinDiff
-//   Copyright 1997 by Christopher J. Madsen
+//   Visual Binary Diff
+//   Copyright 1997-2005 by Christopher J. Madsen
 //
-//   Support class for console mode applications
+//   Support class for curses applications
 //
 //--------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ static const ColorPair colorStyle[] = {
   pairWhiteBlue,   // cPromptWin
   pairWhiteBlue,   // cPromptKey
   pairWhiteBlue,   // cPromptBdr
-  pairWhiteBlack,  // cLocked
+  pairWhiteBlack,  // cCurrentMode
   pairWhiteBlack,  // cFileName
   pairWhiteBlue,   // cFileWin
   pairRedBlue,     // cFileDiff
@@ -39,7 +39,7 @@ static const attr_t attribStyle[] = {
               COLOR_PAIR(colorStyle[ cPromptWin  ]),
   A_BOLD    | COLOR_PAIR(colorStyle[ cPromptKey  ]),
   A_BOLD    | COLOR_PAIR(colorStyle[ cPromptBdr  ]),
-  A_REVERSE | COLOR_PAIR(colorStyle[ cLocked     ]),
+  A_REVERSE | COLOR_PAIR(colorStyle[ cCurrentMode]),
   A_REVERSE | COLOR_PAIR(colorStyle[ cFileName   ]),
               COLOR_PAIR(colorStyle[ cFileWin    ]),
   A_BOLD    | COLOR_PAIR(colorStyle[ cFileDiff   ]),
