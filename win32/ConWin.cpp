@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4585 2004-10-26 00:23:00Z cjm $
+// $Id: ConWin.cpp 4608 2005-03-21 21:36:38Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -9,11 +9,36 @@
 //
 //--------------------------------------------------------------------
 
-#include "StdAfx.h"
+#include "config.h"
 
 #include "ConWin.hpp"
 
 static const COORD ZeroC = {0, 0};
+
+void exitMsg(int status, const char* message); // From vbindiff.cpp
+
+//====================================================================
+// Colors:
+//--------------------------------------------------------------------
+
+#define F_BLACK 0
+#define F_RED   FOREGROUND_RED
+#define F_WHITE (FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE)
+#define F_YELLOW (FOREGROUND_GREEN|FOREGROUND_RED)
+#define B_BLUE  BACKGROUND_BLUE
+#define B_WHITE (BACKGROUND_RED|BACKGROUND_GREEN|BACKGROUND_BLUE)
+
+static const WORD colorStyle[] = {
+  F_WHITE|B_BLUE,                       // cBackground
+  F_WHITE|B_BLUE,                       // cPromptWin
+  F_WHITE|B_BLUE|FOREGROUND_INTENSITY,  // cPromptKey
+  F_WHITE|B_BLUE|FOREGROUND_INTENSITY,  // cPromptBdr
+  F_BLACK|B_WHITE,                      // cCurrentMode
+  F_BLACK|B_WHITE,                      // cFileName
+  F_WHITE|B_BLUE,                       // cFileWin
+  F_RED|B_BLUE|FOREGROUND_INTENSITY,    // cFileDiff
+  F_YELLOW|B_BLUE|FOREGROUND_INTENSITY  // cFileEdit
+};
 
 //====================================================================
 // Class ConWindow:
@@ -74,6 +99,21 @@ void ConWindow::shutdown()
 } // end ConWindow::shutdown
 
 //--------------------------------------------------------------------
+// Return the current screen size:
+
+void ConWindow::getScreenSize(int& x, int& y)
+{
+  CONSOLE_SCREEN_BUFFER_INFO  info;
+
+  if (GetConsoleScreenBufferInfo(scrBuf, &info)) {
+    x = info.dwSize.X;
+    y = info.dwSize.Y;
+  } else {
+    x = y = 0;
+  }
+} // end ConWindow::getScreenSize
+
+//--------------------------------------------------------------------
 // Make the cursor invisible:
 
 void ConWindow::hideCursor()
@@ -106,6 +146,29 @@ void ConWindow::readKey(KEY_EVENT_RECORD& event)
       return;
     }
   } // end forever
+} // end ConWindow::readKey
+
+//--------------------------------------------------------------------
+// Curses-compatible readKey function:
+
+int ConWindow::readKey()
+{
+  KEY_EVENT_RECORD  e;
+
+  readKey(e);
+  switch (e.wVirtualKeyCode) {
+   case VK_ESCAPE:  return KEY_ESCAPE;
+   case VK_TAB:     return KEY_TAB;
+   case VK_BACK:    return KEY_BACKSPACE;
+   case VK_RETURN:  return KEY_RETURN;
+   case VK_DELETE:  return KEY_DELETE;
+   case VK_UP:      return KEY_UP;
+   case VK_DOWN:    return KEY_DOWN;
+   case VK_LEFT:    return KEY_LEFT;
+   case VK_RIGHT:   return KEY_RIGHT;
+  }
+
+  return e.uChar.AsciiChar;
 } // end ConWindow::readKey
 
 //--------------------------------------------------------------------
@@ -151,10 +214,10 @@ ConWindow::~ConWindow()
 //   width,height:  The size of the window
 //   attrib:        The default attributes for the window
 
-void ConWindow::init(short x, short y, short width, short height, WORD attrib)
+void ConWindow::init(short x, short y, short width, short height, Style style)
 {
   ASSERT(data == NULL);
-  attribs = attrib;
+  attribs = colorStyle[style];
   pos.X  = x;
   pos.Y  = y;
   size.X = width;
@@ -216,16 +279,12 @@ void ConWindow::box(short x, short y, short width, short height,
 } // end ConWindow::box
 
 //--------------------------------------------------------------------
-// Draw a box with a single line:
-//
-// Input:
-//   x,y:           The upper left corner of the box in the window
-//   width,height:  The size of the box
+// Draw a box with a single line around the window's border:
 
-void ConWindow::boxSingle(short x, short y, short width, short height)
+void ConWindow::border()
 {
-  box(x,y,width,height, '\332','\277', '\300','\331', '\304', '\263');
-} // end ConWindow::boxSingle
+  box(0,0,size.X,size.Y, '\332','\277', '\300','\331', '\304', '\263');
+} // end ConWindow::border
 
 //--------------------------------------------------------------------
 // Clear the window:
@@ -279,12 +338,12 @@ void ConWindow::put(short x, short y, const char* s)
 //   color:  The attribute to set
 //   count:  The number of characters to change
 
-void ConWindow::putAttribs(short x, short y, WORD color, short count)
+void ConWindow::putAttribs(short x, short y, Style color, short count)
 {
   PCHAR_INFO  c = data + x + size.X * y;
 
   while (count--)
-    (c++)->Attributes = color;
+    (c++)->Attributes = colorStyle[color];
 } // end ConWindow::putAttribs
 
 //--------------------------------------------------------------------
@@ -304,6 +363,12 @@ void ConWindow::putChar(short x, short y, char c, short count)
     (ci++)->Attributes = attribs;
   }
 } // end ConWindow::putAttribs
+
+//--------------------------------------------------------------------
+void ConWindow::setAttribs(Style color)
+{
+  attribs = colorStyle[color];
+} // end ConWindow::setAttribs
 
 //--------------------------------------------------------------------
 // Position the cursor in the window:
@@ -338,3 +403,8 @@ void ConWindow::update()
 
   WriteConsoleOutput(scrBuf, data, size, ZeroC, &r);
 } // end ConWindow::update
+
+// Local Variables:
+// cjm-related-file: "ConWin.hpp"
+//     c-file-style: "cjm"
+// End:

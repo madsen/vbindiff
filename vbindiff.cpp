@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4603 2005-03-21 16:48:16Z cjm $
+// $Id: vbindiff.cpp 4608 2005-03-21 21:36:38Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -22,6 +22,8 @@
 //   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 //--------------------------------------------------------------------
 
+#include "config.h"
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,8 +32,6 @@
 #include <fstream>
 #include <sstream>
 using namespace std;
-
-#include "config.h"
 
 #include "GetOpt/GetOpt.hpp"
 
@@ -836,11 +836,14 @@ void displayCharacterSet()
 
   promptWin.putAttribs(3,2, (isASCII ? cCurrentMode : cBackground), 5);
   promptWin.putAttribs(9,2, (isASCII ? cBackground : cCurrentMode), 6);
+
+  promptWin.update();
 } // end displayCharacterSet
 
 //--------------------------------------------------------------------
 void displayLockState()
 {
+#ifndef WIN32_CONSOLE     // The Win32 version uses Ctrl & Alt instead
   if (singleFile) return;
 
   promptWin.putAttribs(63,1,
@@ -849,6 +852,7 @@ void displayLockState()
   promptWin.putAttribs(63,2,
                        ((lockState == lockTop)    ? cCurrentMode : cBackground),
                        11);
+#endif
 } // end displayLockState
 
 //--------------------------------------------------------------------
@@ -963,6 +967,129 @@ bool initialize()
 // Returns:
 //   Command code
 
+#ifdef WIN32_CONSOLE
+Command getCommand()
+{
+  KEY_EVENT_RECORD e;
+  Command  cmd = cmNothing;
+
+  while (cmd == cmNothing) {
+    ConWindow::readKey(e);
+
+    switch (toupper(e.uChar.AsciiChar)) {
+     case 0x0D:               // Enter
+      cmd = cmNextDiff;
+      break;
+
+     case 0x05:                 // Ctrl+E
+     case 'E':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmEditBottom;
+      else
+        cmd = cmEditTop;
+      break;
+
+     case 'G':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmgGoto|cmgGotoBottom;
+      else
+        cmd = cmgGoto|cmgGotoBoth;
+      break;
+
+     case 0x07:               // Ctrl+G
+      cmd = cmgGoto|cmgGotoTop;
+      break;
+
+     case 0x1B:               // Esc
+     case 0x03:               // Ctrl+C
+     case 'Q':
+      cmd = cmQuit;
+      break;
+
+     case 'C':  cmd = cmToggleASCII;  break;
+
+     default:                 // Try extended codes
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED)) {
+        switch (e.wVirtualKeyCode) {
+         case VK_DOWN:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveLine|cmmMoveForward;
+          break;
+         case VK_RIGHT:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveByte|cmmMoveForward;
+          break;
+         case VK_NEXT:
+          cmd = cmmMove|cmmMoveBottom|cmmMovePage|cmmMoveForward;
+          break;
+         case VK_LEFT:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveByte;
+          break;
+         case VK_UP:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveLine;
+          break;
+         case VK_PRIOR:
+          cmd = cmmMove|cmmMoveBottom|cmmMovePage;
+          break;
+         case VK_HOME:
+          cmd = cmmMove|cmmMoveBottom|cmmMoveAll;
+          break;
+        } // end switch alt virtual key code
+      } else if (e.dwControlKeyState & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED)) {
+        switch (e.wVirtualKeyCode) {
+         case VK_DOWN:
+          cmd = cmmMove|cmmMoveTop|cmmMoveLine|cmmMoveForward;
+          break;
+         case VK_RIGHT:
+          cmd = cmmMove|cmmMoveTop|cmmMoveByte|cmmMoveForward;
+          break;
+         case VK_NEXT:
+          cmd = cmmMove|cmmMoveTop|cmmMovePage|cmmMoveForward;
+          break;
+         case VK_LEFT:
+          cmd = cmmMove|cmmMoveTop|cmmMoveByte;
+          break;
+         case VK_UP:
+          cmd = cmmMove|cmmMoveTop|cmmMoveLine;
+          break;
+         case VK_PRIOR:
+          cmd = cmmMove|cmmMoveTop|cmmMovePage;
+          break;
+         case VK_HOME:
+          cmd = cmmMove|cmmMoveTop|cmmMoveAll;
+          break;
+        } // end switch control virtual key code
+      } else {
+        switch (e.wVirtualKeyCode) {
+         case VK_DOWN:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveLine|cmmMoveForward;
+          break;
+         case VK_RIGHT:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveByte|cmmMoveForward;
+          break;
+         case VK_NEXT:
+          cmd = cmmMove|cmmMoveBoth|cmmMovePage|cmmMoveForward;
+          break;
+         case VK_LEFT:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveByte;
+          break;
+         case VK_UP:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveLine;
+          break;
+         case VK_PRIOR:
+          cmd = cmmMove|cmmMoveBoth|cmmMovePage;
+          break;
+         case VK_HOME:
+          cmd = cmmMove|cmmMoveBoth|cmmMoveAll;
+          break;
+        } // end switch virtual key code
+      } // end else not Alt or Ctrl
+      break;
+    } // end switch ASCII code
+  } // end while no command
+
+  return cmd;
+} // end getCommand
+
+#else // using curses interface
 Command getCommand()
 {
   Command  cmd = cmNothing;
@@ -1017,6 +1144,7 @@ Command getCommand()
 
   return cmd;
 } // end getCommand
+#endif
 
 //--------------------------------------------------------------------
 // Get a file position:
@@ -1317,3 +1445,8 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   return 0;
 } // end main
+
+// Local Variables:
+// cjm-related-file: "ConWin.hpp"
+//     c-file-style: "cjm"
+// End:

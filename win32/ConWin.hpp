@@ -1,25 +1,43 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4585 2004-10-26 00:23:00Z cjm $
+// $Id: ConWin.hpp 4608 2005-03-21 21:36:38Z cjm $
 //--------------------------------------------------------------------
 //
-//   VBinDiff
-//   Copyright 1997 by Christopher J. Madsen
+//   Visual Binary Diff
+//   Copyright 1997-2005 by Christopher J. Madsen
 //
 //   Support class for console mode applications
 //
 //--------------------------------------------------------------------
 
-#ifndef __CONWIN_HPP
+#ifndef INCLUDED_CONWIN_HPP
 
-#define __CONWIN_HPP
+#define INCLUDED_CONWIN_HPP
 
-#define F_BLACK 0
-#define F_RED   FOREGROUND_RED
-#define F_WHITE (FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE)
-#define F_YELLOW (FOREGROUND_GREEN|FOREGROUND_RED)
-#define B_BLUE  BACKGROUND_BLUE
-#define B_WHITE (BACKGROUND_RED|BACKGROUND_GREEN|BACKGROUND_BLUE)
+#define KEY_ESCAPE 0x1B
+#define KEY_TAB    0x09
+#define KEY_DC     0x107F       // Not used
+#define KEY_DELETE 0x7F
+#define KEY_RETURN 0x0D
 
+#define KEY_DOWN        0402            /* down-arrow key */
+#define KEY_UP          0403            /* up-arrow key */
+#define KEY_LEFT        0404            /* left-arrow key */
+#define KEY_RIGHT       0405            /* right-arrow key */
+#define KEY_HOME        0406            /* home key */
+#define KEY_BACKSPACE   0407            /* backspace key */
+
+
+enum Style {
+  cBackground = 0,
+  cPromptWin,
+  cPromptKey,
+  cPromptBdr,
+  cCurrentMode,
+  cFileName,
+  cFileWin,
+  cFileDiff,
+  cFileEdit
+};
 
 class ConWindow
 {
@@ -36,19 +54,25 @@ class ConWindow
  public:
   ConWindow();
   ~ConWindow();
-  void init(short x, short y, short width, short height, WORD attrib);
+  void init(short x, short y, short width, short height, Style style);
+  void close() {};
 
-  void boxSingle(short x, short y, short width, short height);
+  void border();
   void clear();
   void move(short x, short y) { pos.X = x; pos.Y = y; };
 ///void put(short x, short y, const String& s);
   void put(short x, short y, const char* s);
-  void putAttribs(short x, short y, WORD color, short count);
+  void putAttribs(short x, short y, Style color, short count);
   void putChar(short x, short y, char c, short count);
-  void setAttribs(WORD color) { attribs = color; };
+  int  readKey();
+  void setAttribs(Style color);
   void setCursor(short x, short y);
   void update();
 
+  void hide() {};
+  void show() {};
+
+  static void getScreenSize(int& x, int& y);
   static void hideCursor();
   static void readKey(KEY_EVENT_RECORD& event);
   static void showCursor();
@@ -60,4 +84,9 @@ class ConWindow
            char tl, char tr, char bl, char br, char horiz, char vert);
 }; // end ConWindow
 
-#endif // __CONWIN_HPP
+#endif // INCLUDED_CONWIN_HPP
+
+// Local Variables:
+// cjm-related-file: "ConWin.cpp"
+//     c-file-style: "cjm"
+// End:

@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: StdAfx.h 4585 2004-10-26 00:23:00Z cjm $
+// $Id: config.h 4608 2005-03-21 21:36:38Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 1997 by Christopher J. Madsen
+//   Copyright 1997-2005 by Christopher J. Madsen
 //
 //   Include file for standard system include files,
 //   or project specific include files that are used frequently,
@@ -16,6 +16,10 @@
 #include <crtdbg.h>             // _ASSERT
 
 #define ASSERT _ASSERTE
+
+#define WIN32_CONSOLE 1
+
+#define PACKAGE_VERSION "3.0"   // FIXME
 
 /////////////////////////////////////////////////////////////////////////////
 // Local Variables:
