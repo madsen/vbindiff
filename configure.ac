@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-# $Id: configure.ac 4592 2005-03-12 17:11:36Z cjm $
+# $Id: configure.ac 4604 2005-03-21 17:30:21Z cjm $
 
 AC_PREREQ(2.59)
 AC_INIT([[Visual Binary Diff]], [[3.0]], [[cjm@pobox.com]], [[vbindiff]])
@@ -8,6 +8,7 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_SRCDIR([vbindiff.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_LANG([C++])
+AC_REVISION($Revision: 4604 $)
 
 # Checks for programs.
 AC_PROG_CXX
@@ -31,12 +32,7 @@ AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
-AC_FUNC_ERROR_AT_LINE
-AC_FUNC_LSTAT
-AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-AC_FUNC_SETVBUF_REVERSED
-AC_FUNC_STRTOD
-AC_CHECK_FUNCS([memset strchr strrchr strtol strtoul])
+AC_CHECK_FUNCS([atexit memset strchr strerror strrchr strtoul])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
