@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4597 2005-03-15 19:45:51Z cjm $
+// $Id: ConWin.cpp 4600 2005-03-16 20:51:00Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -17,7 +17,7 @@ void exitMsg(int status, const char* message); // From vbindiff.cpp
 
 enum ColorPair {
   pairWhiteBlue= 1,
-  pairBlackWhite,
+  pairWhiteBlack,
   pairRedBlue,
   pairYellowBlue
 };
@@ -27,23 +27,23 @@ static const ColorPair colorStyle[] = {
   pairWhiteBlue,   // cPromptWin
   pairWhiteBlue,   // cPromptKey
   pairWhiteBlue,   // cPromptBdr
-  pairBlackWhite,  // cLocked
-  pairBlackWhite,  // cFileName
+  pairWhiteBlack,  // cLocked
+  pairWhiteBlack,  // cFileName
   pairWhiteBlue,   // cFileWin
   pairRedBlue,     // cFileDiff
   pairYellowBlue   // cFileEdit
 };
 
 static const attr_t attribStyle[] = {
-           COLOR_PAIR(colorStyle[ cBackground ]),
-           COLOR_PAIR(colorStyle[ cPromptWin  ]),
-  A_BOLD | COLOR_PAIR(colorStyle[ cPromptKey  ]),
-  A_BOLD | COLOR_PAIR(colorStyle[ cPromptBdr  ]),
-           COLOR_PAIR(colorStyle[ cLocked     ]),
-           COLOR_PAIR(colorStyle[ cFileName   ]),
-           COLOR_PAIR(colorStyle[ cFileWin    ]),
-  A_BOLD | COLOR_PAIR(colorStyle[ cFileDiff   ]),
-  A_BOLD | COLOR_PAIR(colorStyle[ cFileEdit   ])
+              COLOR_PAIR(colorStyle[ cBackground ]),
+              COLOR_PAIR(colorStyle[ cPromptWin  ]),
+  A_BOLD    | COLOR_PAIR(colorStyle[ cPromptKey  ]),
+  A_BOLD    | COLOR_PAIR(colorStyle[ cPromptBdr  ]),
+  A_REVERSE | COLOR_PAIR(colorStyle[ cLocked     ]),
+  A_REVERSE | COLOR_PAIR(colorStyle[ cFileName   ]),
+              COLOR_PAIR(colorStyle[ cFileWin    ]),
+  A_BOLD    | COLOR_PAIR(colorStyle[ cFileDiff   ]),
+  A_BOLD    | COLOR_PAIR(colorStyle[ cFileEdit   ])
 };
 
 //====================================================================
@@ -70,14 +70,14 @@ bool ConWindow::startup()
   cbreak();         // take input chars one at a time, no wait for \n
   noecho();         // do not echo input
 
-  if (!has_colors()) return false; // FIXME
+  if (has_colors()) {
+    start_color();
 
-  start_color();
-
-  init_pair(pairWhiteBlue,  COLOR_WHITE,  COLOR_BLUE);
-  init_pair(pairBlackWhite, COLOR_BLACK,  COLOR_WHITE);
-  init_pair(pairRedBlue,    COLOR_RED,    COLOR_BLUE);
-  init_pair(pairYellowBlue, COLOR_YELLOW, COLOR_BLUE);
+    init_pair(pairWhiteBlue,  COLOR_WHITE,  COLOR_BLUE);
+    init_pair(pairWhiteBlack, COLOR_WHITE,  COLOR_BLACK);
+    init_pair(pairRedBlue,    COLOR_RED,    COLOR_BLUE);
+    init_pair(pairYellowBlue, COLOR_YELLOW, COLOR_BLUE);
+  } // end if terminal has color
 
   return true;
 } // end ConWindow::startup
