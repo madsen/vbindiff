@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cc,v 1.1 1995/03/16 16:32:44 Madsen Exp $
+// $Id: vbindiff.cc,v 1.2 1995/11/27 04:16:26 Madsen Exp $
 //--------------------------------------------------------------------
 //
 //   Visual Binary DIFF
@@ -62,7 +62,7 @@ const int  bufSize   = numLines * lineWidth;
 
 const int  maxPath = 260;
 
-const int  steps[4] = {1, lineWidth, bufSize, 0};
+const int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 
 //====================================================================
 // Class Declarations:
@@ -74,16 +74,16 @@ class FileDisplay
   friend Difference;
 
  protected:
-  Word                bufContents;
-  const Difference*   diffs;
-  ifstream            file;
-  char                fileName[maxPath];
-  streampos           offset;
-  wm_handle           win;
-  int                 yPos;
+  int                bufContents;
+  const Difference*  diffs;
+  ifstream           file;
+  char               fileName[maxPath];
+  streampos          offset;
+  wm_handle          win;
+  int                yPos;
   union {
-    Byte              line[numLines][lineWidth];
-    Byte              buffer[bufSize];
+    Byte             line[numLines][lineWidth];
+    Byte             buffer[bufSize];
   };
  public:
   FileDisplay();
@@ -104,13 +104,15 @@ class Difference
  protected:
   const FileDisplay*  file1;
   const FileDisplay*  file2;
+  int                 numDiffs;
   union {
     Byte              line[numLines][lineWidth];
     Byte              table[bufSize];
   };
  public:
   Difference(const FileDisplay* aFile1, const FileDisplay* aFile2);
-  Boolean  compute();
+  int  compute();
+  int  getNumDiffs() const { return numDiffs; };
 }; // end Difference
 
 //====================================================================
@@ -154,38 +156,65 @@ Difference::Difference(const FileDisplay* aFile1, const FileDisplay* aFile2)
 // Compute differences:
 //
 // Returns:
-//   True:   File buffers are different
-//   False:  File buffers are identical
+//   The number of differences between the buffers
+//   -1 if both buffers are empty
+//
+// Output Variables:
+//   numDiffs:
+//     The number of differences
 
-Boolean  Difference::compute()
+int Difference::compute()
 {
   memset(table, 0, sizeof(table));
 
-  Boolean  different = False;
+  int  different = 0;
 
   const Byte*  buf1 = file1->buffer;
   const Byte*  buf2 = file2->buffer;
 
   int  size = min(file1->bufContents, file2->bufContents);
 
-  for (int i = 0; i < size; i++) {
-    if (*(buf1++) != *(buf2++))
-      table[i] = different = True;
-  }
+  for (int i = 0; i < size; i++)
+    if (*(buf1++) != *(buf2++)) {
+      table[i] = True;
+      ++different;
+    }
 
   size = max(file1->bufContents, file2->bufContents);
 
   if (i < size) {
+    different += size - i;
     for (; i < size; i++)
       table[i] = True;
-    different = True;
-  }
+  } else if (!size)
+    return -1;                  // Both buffers are empty
 
-  return Boolean(different || !size);
+  numDiffs = different;
+
+  return different;
 } // end Difference::compute
 
 //====================================================================
 // Class FileDisplay:
+//
+// Member Variables:
+//   bufContents:
+//     The number of bytes in the file buffer
+//   diffs:
+//     A pointer to the Difference object related to this file
+//   file:
+//     The file being displayed
+//   fileName:
+//     The relative pathname of the file being displayed
+//   offset:
+//     The position in the file of the first byte in the buffer
+//   win:
+//     The handle of the window used for display
+//   yPos:
+//     The vertical position of the display window
+//   buffer/line:
+//     The currently displayed portion of the file
+//
 //--------------------------------------------------------------------
 // Constructor:
 
@@ -201,6 +230,13 @@ FileDisplay::FileDisplay()
 
 //--------------------------------------------------------------------
 // Initialize:
+//
+// Creates the display window and opens the file.
+//
+// Input:
+//   y:          The vertical position of the display window
+//   aDiff:      The Difference object related to this buffer
+//   aFileName:  The name of the file to display
 
 void FileDisplay::init(int y, const Difference* aDiff,
                        const char* aFileName)
@@ -229,6 +265,10 @@ FileDisplay::~FileDisplay()
 } // end FileDisplay::~FileDisplay
 
 //--------------------------------------------------------------------
+// Shut down the file display:
+//
+// Deletes the display window.
+
 void FileDisplay::shutDown()
 {
   if (win) {
@@ -239,10 +279,12 @@ void FileDisplay::shutDown()
 } // end FileDisplay::shutDown
 
 //--------------------------------------------------------------------
+// Display the file contents:
+
 void FileDisplay::display() const
 {
-  const int  leftMar  = 11;
-  const int  leftMar2 = 61;
+  const int  leftMar  = 11;     // Starting column of hex display
+  const int  leftMar2 = 61;     // Starting column of ASCII display
 
   streampos  lineOffset = offset;
 
@@ -283,6 +325,16 @@ void FileDisplay::display() const
 } // end FileDisplay::display
 
 //--------------------------------------------------------------------
+// Change the file position:
+//
+// Changes the file offset and updates the buffer.
+// Does not update the display.
+//
+// Input:
+//   step:
+//     The number of bytes to move
+//     A negative value means to move backward
+
 void FileDisplay::move(int step)
 {
   offset += step;
@@ -299,6 +351,14 @@ void FileDisplay::move(int step)
 } // end FileDisplay::move
 
 //--------------------------------------------------------------------
+// Open a file for display:
+//
+// Opens the file, updates the filename display, and reads the start
+// of the file into the buffer.
+//
+// Input:
+//   aFileName:  The name of the file to open
+
 void FileDisplay::setFile(const char* aFileName)
 {
   strncpy(fileName, aFileName, maxPath);
@@ -384,17 +444,23 @@ Boolean initialize()
 
 //--------------------------------------------------------------------
 // Get a command from the keyboard:
+//
+// Returns:
+//   Command code
 
 Command getCommand()
 {
   Command  cmd = cmNothing;
+
+  while (_read_kbd(0,0,0) != -1) // Clear keyboard buffer
+    ;
 
   int  key = _read_kbd(0,1,0);
 
   key = toupper(key);
 
   switch (key) {
-   case 0:
+   case 0:                      // Extended code
     key = _read_kbd(0,1,0);
     switch (key) {
      case K_DOWN:
@@ -472,6 +538,9 @@ Command getCommand()
 
 //--------------------------------------------------------------------
 // Handle a command:
+//
+// Input:
+//   cmd:  The command to be handled
 
 void handleCmd(Command cmd)
 {
@@ -479,15 +548,13 @@ void handleCmd(Command cmd)
     int  step = steps[cmd & cmmMoveSize];
 
     if ((cmd & cmmMoveForward) == 0)
-      step *= -1;
+      step *= -1;               // We're moving backward
 
     if (cmd & cmmMoveTop)
       file1.move(step);
 
     if (cmd & cmmMoveBottom)
       file2.move(step);
-
-    diffs.compute();
   } // end if move
   else if (cmd == cmNextDiff) {
     do {
@@ -495,6 +562,11 @@ void handleCmd(Command cmd)
       file2.move(bufSize);
     } while (!diffs.compute());
   } // end else if cmNextDiff
+
+  while (diffs.compute() < 0) {
+    file1.move(-steps[cmmMovePage]);
+    file2.move(-steps[cmmMovePage]);
+  }
 
   file1.display();
   file2.display();
