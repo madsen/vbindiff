@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4623 2005-03-28 15:42:08Z cjm $
+// $Id: vbindiff.cpp 4624 2005-04-13 15:50:25Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -947,7 +947,7 @@ void positionInWin(Command cmd, short width, const char* title)
 {
   inWin.resize(width, 3);
   inWin.move((screenWidth-width)/2,
-             ((cmd & cmgGotoBottom)
+             ((!singleFile && (cmd & cmgGotoBottom))
               ? ((cmd & cmgGotoTop)
                  ? numLines + linesBetween                   // Moving both
                  : numLines + numLines/2 + 1 + linesBetween) // Moving bottom
