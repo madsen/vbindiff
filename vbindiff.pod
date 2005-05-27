@@ -1,4 +1,4 @@
-=cut $Id: vbindiff.pod 4603 2005-03-21 16:48:16Z cjm $
+=cut $Id: vbindiff.pod 4625 2005-05-27 15:32:55Z cjm $
 
 =head1 NAME
 
@@ -66,8 +66,10 @@ Also, you cannot insert or delete bytes, only change them.
 
 =head1 BUGS
 
-Does not work properly with files over 4 gigabytes.  Some iostream
-libraries can only handle files up to 2 gigabytes.
+Does not work properly with files over 4 gigabytes.  It should be
+able to view the first 4 gigabytes ok, but the display only has room
+for 8 hex digits of file position, and the Goto box is also limited to
+8 digits.
 
 =head1 AUTHOR
 
