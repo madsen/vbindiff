@@ -1,0 +1,8 @@
+>../win32/version.h
+----------------------------------------------------------------------
+#ifndef PACKAGE_VERSION
+
+#define PACKAGE_VERSION    "[% major %].[% minor %]"
+#define PACKAGE_VERSION_NUM [% major %],[% minor + 0 %],0,0
+
+#endif /* not PACKAGE_VERSION */

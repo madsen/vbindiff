@@ -82,6 +82,9 @@ LINK32=link.exe
 
 # Name "vbindiff - Win32 Release"
 # Name "vbindiff - Win32 Debug"
+# Begin Group "Source Files"
+
+# PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
 SOURCE=.\ConWin.cpp
@@ -100,5 +103,81 @@ SOURCE=.\StdAfx.cpp
 
 SOURCE=..\vbindiff.cpp
 # End Source File
+# End Group
+# Begin Group "Header Files"
+
+# PROP Default_Filter "h;hpp;hxx;hm;inl"
+# Begin Source File
+
+SOURCE=.\config.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\ConWin.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\FileIO.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\GetOpt\GetOpt.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\tables.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\version.h
+# End Source File
+# End Group
+# Begin Group "Resource Files"
+
+# PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
+# Begin Source File
+
+SOURCE=.\vbindiff.rc
+# End Source File
+# End Group
+# Begin Group "Build Process"
+
+# PROP Default_Filter ""
+# Begin Source File
+
+SOURCE=..\configure.ac
+# End Source File
+# Begin Source File
+
+SOURCE=..\tools\version.h.tt
+
+!IF  "$(CFG)" == "vbindiff - Win32 Release"
+
+USERDEP__VERSI="../configure.ac"	
+# Begin Custom Build - Generating version.h from configure.ac...
+ProjDir=.
+InputPath=..\tools\version.h.tt
+
+"$(ProjDir)/version.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	perl ..\tools\genfile.pl $(InputPath)
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "vbindiff - Win32 Debug"
+
+USERDEP__VERSI="../configure.ac"	
+# Begin Custom Build - Generating version.h from configure.ac...
+ProjDir=.
+InputPath=..\tools\version.h.tt
+
+"$(ProjDir)/version.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	perl ..\tools\genfile.pl $(InputPath)
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# End Group
 # End Target
 # End Project

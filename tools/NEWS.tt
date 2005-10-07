@@ -1,0 +1,25 @@
+[% # $Id: NEWS.tt 4644 2005-10-07 21:43:10Z cjm $ %]
+
+[% UNLESS Win32 %]
+   >../NEWS
+[% END %]
+
+* 31 Oct 2005     VBinDiff 3.0
+
+  Added a POSIX (eg, Linux) version alongside the Win32 version
+  Added EBCDIC support
+  Added support for resized consoles
+
+* October 2004    VBinDiff 2.x
+
+  Added support for editing single files
+  Never publicly released
+
+* October 1997    VBinDiff 2.x
+
+  Ported from OS/2 to Win32
+  Never publicly released
+
+* January 1996    VBinDiff 1.x
+
+  First public release of VBinDiff (OS/2 version)

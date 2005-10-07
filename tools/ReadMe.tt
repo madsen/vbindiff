@@ -1,0 +1,135 @@
+[% # $Id: ReadMe.tt 4644 2005-10-07 21:43:10Z cjm $ %]
+
+[% IF Win32 %]
+   [% outputFile = 'ReadMe.txt' %]
+[% ELSE %]
+   [% outputFile = 'README' %]
+[% END %]
+>../[% outputFile %]
+
+
+===============================================================================
+[% PERL %]
+# Generate title line:
+# ReadMe.txt                Visual Binary Diff 0.xx                 DD-Mmm-YYYY
+
+use Date::Format 'time2str';
+
+my $line   = $stash->get('outputFile');
+my $center = sprintf '%s %s', $stash->get('name'), $stash->get('version');
+my $date   = time2str('%e-%b-%Y', time);
+
+$line .= (' ' x (int((79 - length $center) / 2) - length $line)) . $center;
+$line .= (' ' x (79 - length($line) - length($date))) . $date . "\n";
+
+print $line
+
+[% END %]
+===============================================================================
+                                         Copyright 2000-5 Christopher J. Madsen
+CONTENTS
+========
+[% PERL %]
+# Generate the table of contents:
+
+my $Win32 = $stash->get('Win32');
+
+my @sections = (
+  'About Visual Binary Diff,
+  'System Requirements',
+  'Installation',
+  ($Win32 ? 'Removal' : ()),
+  'License',
+  ($Win32 ? 'History' : ()),
+  'Author',
+);
+
+my %section;
+my $num = 0;
+foreach (@sections) {
+  $section{$_} = sprintf "[\%d] %s", ++$num, $_;
+  print "  $section{$_}\n";
+}
+
+$stash->set(section => sub {
+  my $s = $section{$_[0]};
+  sprintf "%s\n%s", $s, '-' x length($s),
+});
+[% END %]
+
+[% section('About Visual Binary Diff) %]
+
+Visual Binary Diff (VBinDiff) displays files in hexadecimal and ASCII
+(or EBCDIC).  It can also display two files at once, and highlight
+the differences between them.  Unlike B<diff>, it works well with
+large files (up to 4 GB).
+
+
+[% section('System Requirements') %]
+
+Windows 95, Windows NT 4.0, or later
+  or
+A POSIX-compatible system with ncurses (eg, Linux)
+
+
+[% section('Installation') %]
+
+[% IF Win32 %]
+Copy VBinDiff.exe to a folder on your path.  If you don't know what a path
+is, you can put it in your C:\Windows directory.  Then read VBinDiff.txt to
+find out how to use it.
+[% ELSE %]
+VBinDiff uses the standard GNU autoconf system.  See the file INSTALL if
+you're not familiar with that.
+[% END %]
+
+
+[% IF Win32 %]
+[% section('Removal') %]
+
+To remove VBinDiff, just delete it.  It makes no registry changes or INI
+files.
+
+The following files are included with FFV (and should be deleted):
+  ReadMe.txt	This file
+  AUTHORS.txt   Credits
+  COPYING.txt   The GNU General Public License
+  VBinDiff.exe	The main program
+  VBinDiff.txt	The documentation
+  Source.zip    The source code for FFV
+
+
+[% END %]
+[% section('License') %]
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of
+the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+The GNU General Public License can be found in the file COPYING[% '.txt' IF Win32 %].
+
+
+[% IF Win32 %]
+[% section('History') %]
+[% INCLUDE NEWS.tt %]
+
+
+[% END %]
+[% section('Author') %]
+
+Christopher J. Madsen           cjm@pobox.com
+1113 Abrams Rd. Apt. 296
+Richardson, TX  75081-5573
+
+VBinDiff Home Page:
+http://www.pobox.com/~cjm/vbindiff/

@@ -1,25 +1,43 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 4620 2005-03-25 19:59:42Z cjm $
+# $Id: Makefile.am 4644 2005-10-07 21:43:10Z cjm $
 
 bin_PROGRAMS = vbindiff
 dist_man_MANS = vbindiff.1
 vbindiff_SOURCES = vbindiff.cpp tables.h curses/ConWin.cpp curses/ConWin.hpp  \
 		   curses/FileIO.hpp GetOpt/GetOpt.cpp GetOpt/GetOpt.hpp
-EXTRA_DIST = vbindiff.pod cjm-style.el putty.src \
+EXTRA_DIST = cjm-style.el putty.src \
+	tools/vbindiff.pod.tt	\
+	tools/NEWS.tt		\
+	tools/ReadMe.tt		\
+	tools/genfile.pl	\
+	tools/getversion.pm	\
+	tools/maketxt.pl	\
+	tools/version.h.tt	\
+	tools/zipdist.pl	\
 	win32/ConWin.cpp	\
 	win32/ConWin.hpp	\
 	win32/FileIO.hpp	\
 	win32/StdAfx.cpp	\
 	win32/config.h		\
-	win32/update.pl		\
 	win32/vbindiff.dsp	\
-	win32/vbindiff.dsw
+	win32/vbindiff.dsw	\
+	win32/version.h
 
 AM_CPPFLAGS = -I$(srcdir)/curses
 
 AM_CFLAGS = -Wall -D_FILE_OFFSET_BITS=64
 AM_CXXFLAGS = $(AM_CFLAGS)
 
-vbindiff.1 : vbindiff.pod
-	pod2man --center="Christopher J. Madsen" \
-		--release="VBinDiff $(PACKAGE_VERSION)" $< >$@
+GENFILE = perl tools/genfile.pl
+
+README : tools/ReadMe.tt configure.ac
+	$(GENFILE) $<
+
+NEWS : tools/NEWS.tt configure.ac
+	$(GENFILE) $<
+
+vbindiff.1 : tools/vbindiff.pod.tt configure.ac
+	$(GENFILE) $<
+
+win32/version.h : tools/version.h.tt configure.ac
+	$(GENFILE) $<

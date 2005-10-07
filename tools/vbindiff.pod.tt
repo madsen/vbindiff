@@ -1,5 +1,11 @@
-=cut $Id: vbindiff.pod 4625 2005-05-27 15:32:55Z cjm $
+[% # $Id: vbindiff.pod.tt 4644 2005-10-07 21:43:10Z cjm $ %]
 
+[% IF Win32 %]
+   | perl maketxt.pl "[% name %] [% version %]" ../VBinDiff.txt
+[% ELSE %]
+   | pod2man --center="Christopher J. Madsen" --release="VBinDiff [% version %]" --name=VBINDIFF - ../vbindiff.1
+[% END %]
+----------------------------------------------------------------------
 =head1 NAME
 
 vbindiff - hexadecimal file display and comparison
@@ -48,8 +54,8 @@ bottom" mode.
 
 When editing, you can move the cursor around with the arrow keys.  Use
 TAB to switch between entering hexadecimal or ASCII (or EBCDIC)
-characters.  Press the Esc when you are done.  You will be given the
-choice to save or discard your changes then.
+characters.  Press the Esc key when you are done.  You will be given
+the choice to save or discard your changes then.
 
 If you are displaying two files, you can use the Enter key to copy a
 byte from the other file into the one you are editing.
