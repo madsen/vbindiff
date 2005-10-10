@@ -1,14 +1,36 @@
-[% # $Id: vbindiff.pod.tt 4644 2005-10-07 21:43:10Z cjm $ %]
+[% # $Id: vbindiff.pod.tt 4646 2005-10-10 20:53:49Z cjm $ %]
 
 [% IF Win32 %]
-   | perl maketxt.pl "[% name %] [% version %]" ../VBinDiff.txt
+   | perl maketxt.pl ../VBinDiff.txt
 [% ELSE %]
    | pod2man --center="Christopher J. Madsen" --release="VBinDiff [% version %]" --name=VBINDIFF - ../vbindiff.1
 [% END %]
 ----------------------------------------------------------------------
 =head1 NAME
 
+[% IF Win32 %]
+ ===============================================================================
+[% PERL %]
+# Generate title line:
+# VBinDiff                  Visual Binary Diff 0.xx                 DD-Mmm-YYYY
+
+use Date::Format 'time2str';
+
+my $line   = 'VBinDiff';
+my $center = sprintf '%s %s', $stash->get('name'), $stash->get('version');
+my $date   = time2str('%e-%b-%Y', time);
+
+$line .= (' ' x (int((79 - length $center) / 2) - length $line)) . $center;
+$line .= (' ' x (79 - length($line) - length($date))) . $date . "\n";
+
+print $line
+
+[% END %]
+ ===============================================================================
+                                      Copyright 1995-2005 Christopher J. Madsen
+[% ELSE %]
 vbindiff - hexadecimal file display and comparison
+[% END %]
 
 =head1 SYNOPSIS
 
@@ -23,34 +45,51 @@ large files (up to 4 GB).
 
 =head2 Viewing files
 
-Use the arrow keys to move through the file(s).  The up and down arrow
-keys move a line (16 bytes) at a time, and the left and right arrows
-move one byte at a time.  The Page Up and Page Down keys move a
-screenful at a time.  The Home key moves to the beginning, and the End
-key moves to the end.
+ Movement Keys
+ -------------
+ Up      Move one line (16 bytes) towards the beginning of the file
+ Down    Move one line (16 bytes) towards the end of the file
+ Left    Move one byte towards the beginning of the file
+ Right   Move one byte towards the end of the file
+ PageUp  Move one page towards the beginning of the file
+ PageDn  Move one page towards the end of the file
+ Home    Move to the beginning of the file
+ End     Move to the end of the (shorter) file
+ F       Search for a string or byte sequence
+ G       Move to a specified file position
 
-Normally, both files move together.  To move only the top file, press
-C<T>.  To move only the bottom file, press C<B>.  To return to moving
-both files, press the same key again.  (The window at the bottom of
-the screen will indicate when you are moving only one file.)
+[% IF Win32 %]
+When displaying two files, holding down Alt while using the movement
+keys will scroll only the bottom file.  Holding down Ctrl will scroll
+only the top file.
+[% ELSE %]
+When displaying two files, both files move together.  To move only the
+top file, press C<T>.  To move only the bottom file, press C<B>.  To
+return to moving both files, press the same key again.  (The window at
+the bottom of the screen will indicate when you are moving only one
+file.)
+[% END %]
 
-The Enter key will advance to the next difference between the files
+ Other Keys
+ ----------
+ Enter  Move to the next difference between the files
+ C      Toggle between ASCII and EBCDIC display
+ E      Edit currently displayed section of file
+ Esc    Exit VBinDiff
+ Q      Exit VBinDiff
+
+The C<Enter> key will advance to the next difference between the files
 (after those already displayed on the screen).  If there are no more
 differences, it moves to the end.
-
-Press C<G> to go to a given position in the file.  A window will pop
-up where you can enter the position (in hexadecimal).  Both files
-will move to the same position, unless you are in "move top" or
-"move bottom" mode.
-
-Press C<C> to toggle the display between ASCII and EBCDIC.  The
-current display mode will be hilighted at the bottom of the screen.
 
 =head2 Editing files
 
 You can press C<E> to edit the current file.  When displaying two
-files, this edits the one in the top window, unless you are in "move
-bottom" mode.
+files, this edits the one in the top window[% IF Win32 %]
+.  Press C<Alt+E> to edit the file in the bottom window.
+[% ELSE %]
+, unless you are in "move bottom" mode.
+[% END %]
 
 When editing, you can move the cursor around with the arrow keys.  Use
 TAB to switch between entering hexadecimal or ASCII (or EBCDIC)
@@ -76,6 +115,24 @@ Does not work properly with files over 4 gigabytes.  It should be
 able to view the first 4 gigabytes ok, but the display only has room
 for 8 hex digits of file position, and the Goto box is also limited to
 8 digits.
+
+
+=head1 LICENSE
+
+VBinDiff is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.
+
+VBinDiff is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with VBinDiff (see the file COPYING[% '.txt' IF Win32 %]); if not, write to the Free
+Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
 
 =head1 AUTHOR
 

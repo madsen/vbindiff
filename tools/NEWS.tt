@@ -1,4 +1,4 @@
-[% # $Id: NEWS.tt 4644 2005-10-07 21:43:10Z cjm $ %]
+[% # $Id: NEWS.tt 4646 2005-10-10 20:53:49Z cjm $ %]
 
 [% UNLESS Win32 %]
    >../NEWS
@@ -12,7 +12,7 @@
 
 * October 2004    VBinDiff 2.x
 
-  Added support for editing single files
+  Added support for editing files
   Never publicly released
 
 * October 1997    VBinDiff 2.x
