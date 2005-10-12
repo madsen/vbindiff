@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4624 2005-04-13 15:50:25Z cjm $
+// $Id: vbindiff.cpp 4647 2005-10-12 21:56:10Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -39,7 +39,7 @@ using namespace std;
 #include "FileIO.hpp"
 
 const char titleString[] =
-  "\nVBinDiff " PACKAGE_VERSION " by Christopher J. Madsen";
+  "\nVBinDiff " PACKAGE_VERSION "\nCopyright 2005 Christopher J. Madsen";
 
 void exitMsg(int status, const char* message);
 void usage(bool showHelp=true, int exitStatus=0);
