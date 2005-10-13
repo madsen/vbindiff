@@ -1,0 +1,36 @@
+Unfortunately, I've run into problems using the Unix version of
+VBinDiff with the popular PuTTY terminal emulator:
+
+  http://www.chiark.greenend.org.uk/~sgtatham/putty/
+
+The first problem is that by default, PuTTY identifies itself as an
+"xterm".  But its xterm emulation is not completely accurate, and it
+so happens that VBinDiff triggers the problem.  When using VBinDiff
+with the "xterm" terminal type, you'll notice that the background
+color doesn't extend to the right edge of the screen.  (Also, the Home
+and End keys don't work.)
+
+To fix this, you must tell PuTTY to stop pretending it's an xterm.  To
+do that, go to the PuTTY Configuration dialog, and find the Data page
+(under Connection).  Change the Terminal-type string from "xterm" to
+"putty".  Don't forget to save your settings after making this change.
+
+This brings us to the second problem.  The terminal description for
+PuTTY distributed with ncurses 5.4 misidentifies the Home and End keys
+as Find and Select, respectively.  That means those keys won't work in
+VBinDiff (or other programs, for that matter).
+
+To fix this, you can get the latest terminfo file from the author of
+ncurses (Thomas Dickey) and install it:
+
+  ftp://invisible-island.net/ncurses/terminfo.src.gz
+
+Or, for your convenience, I have included the corrected terminfo
+record with VBinDiff in the file putty.src.  To install it (on the
+system running VBinDiff), simply type:
+
+ tic putty.src
+
+If you do that as root, it will update the system terminfo database
+with the corrected record.  Otherwise, it will install the record in
+your home directory (under ~/.terminfo).

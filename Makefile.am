@@ -1,11 +1,14 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 4644 2005-10-07 21:43:10Z cjm $
+# $Id: Makefile.am 4648 2005-10-13 17:09:42Z cjm $
 
 bin_PROGRAMS = vbindiff
 dist_man_MANS = vbindiff.1
 vbindiff_SOURCES = vbindiff.cpp tables.h curses/ConWin.cpp curses/ConWin.hpp  \
 		   curses/FileIO.hpp GetOpt/GetOpt.cpp GetOpt/GetOpt.hpp
-EXTRA_DIST = cjm-style.el putty.src \
+EXTRA_DIST = \
+	cjm-style.el		\
+	putty.src		\
+	README.PuTTY		\
 	tools/vbindiff.pod.tt	\
 	tools/NEWS.tt		\
 	tools/ReadMe.tt		\
