@@ -1,4 +1,4 @@
-[% # $Id: ReadMe.tt 4644 2005-10-07 21:43:10Z cjm $ %]
+[% # $Id: ReadMe.tt 4649 2005-10-13 21:57:26Z cjm $ %]
 
 [% IF Win32 %]
    [% outputFile = 'ReadMe.txt' %]
@@ -35,7 +35,7 @@ CONTENTS
 my $Win32 = $stash->get('Win32');
 
 my @sections = (
-  'About Visual Binary Diff,
+  'About Visual Binary Diff',
   'System Requirements',
   'Installation',
   ($Win32 ? 'Removal' : ()),
@@ -57,12 +57,23 @@ $stash->set(section => sub {
 });
 [% END %]
 
-[% section('About Visual Binary Diff) %]
+[% section('About Visual Binary Diff') %]
 
 Visual Binary Diff (VBinDiff) displays files in hexadecimal and ASCII
 (or EBCDIC).  It can also display two files at once, and highlight
 the differences between them.  Unlike B<diff>, it works well with
 large files (up to 4 GB).
+
+VBinDiff was inspired by the Compare Files function of the ProSel
+utilities by Glen Bredon, for the Apple II.  When I couldn't find a
+similar utility for the PC, I wrote it myself.
+
+The single-file mode was inspired by the LIST utility of 4DOS and
+friends (http://www.jpsoft.com/4ntdes.htm).  While less
+(http://www.greenwoodsoftware.com/less/) provides a good line-oriented
+display, it has no equivalent to LIST's hex display.  (True, you can
+pipe the file through hexdump, but that's incredibly inefficient on
+multi-gigabyte files.)
 
 
 [% section('System Requirements') %]
@@ -70,6 +81,10 @@ large files (up to 4 GB).
 Windows 95, Windows NT 4.0, or later
   or
 A POSIX-compatible system with ncurses (eg, Linux)
+
+It should be possible to port the ncurses version to work with other
+curses libraries (as long as they provide the panel library), but I
+don't have access to such a system.  Patches are welcome.
 
 
 [% section('Installation') %]
@@ -90,13 +105,13 @@ you're not familiar with that.
 To remove VBinDiff, just delete it.  It makes no registry changes or INI
 files.
 
-The following files are included with FFV (and should be deleted):
+The following files are included with VBinDiff (and should be deleted):
   ReadMe.txt	This file
   AUTHORS.txt   Credits
   COPYING.txt   The GNU General Public License
   VBinDiff.exe	The main program
   VBinDiff.txt	The documentation
-  Source.zip    The source code for FFV
+  Source.zip    The source code for VBinDiff
 
 
 [% END %]

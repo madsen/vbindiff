@@ -1,5 +1,4 @@
-[% # $Id: NEWS.tt 4646 2005-10-10 20:53:49Z cjm $ %]
-
+[% # $Id: NEWS.tt 4649 2005-10-13 21:57:26Z cjm $ %]
 [% UNLESS Win32 %]
    >../NEWS
 [% END %]
@@ -7,8 +6,9 @@
 * 31 Oct 2005     VBinDiff 3.0
 
   Added a POSIX (eg, Linux) version alongside the Win32 version
+  Added single-file mode
   Added EBCDIC support
-  Added support for resized consoles
+  Added support for resized consoles (no longer assumes 80x25)
 
 * October 2004    VBinDiff 2.x
 
@@ -17,7 +17,7 @@
 
 * October 1997    VBinDiff 2.x
 
-  Ported from OS/2 to Win32
+  Ported from OS/2 to Win32 (OS/2 support dropped)
   Never publicly released
 
 * January 1996    VBinDiff 1.x
