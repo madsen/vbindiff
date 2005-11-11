@@ -1,9 +1,9 @@
-[% # $Id: NEWS.tt 4649 2005-10-13 21:57:26Z cjm $ %]
+[% # $Id: NEWS.tt 4651 2005-11-11 22:16:57Z cjm $ %]
 [% UNLESS Win32 %]
    >../NEWS
 [% END %]
 
-* 31 Oct 2005     VBinDiff 3.0
+* 11 Nov 2005     VBinDiff 3.0 beta 1
 
   Added a POSIX (eg, Linux) version alongside the Win32 version
   Added single-file mode
