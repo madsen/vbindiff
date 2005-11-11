@@ -1,4 +1,4 @@
-[% # $Id: vbindiff.pod.tt 4651 2005-11-11 22:16:57Z cjm $ %]
+[% # $Id: vbindiff.pod.tt 4652 2005-11-11 22:20:50Z cjm $ %]
 
 [% IF Win32 %]
    | perl maketxt.pl ../VBinDiff.txt
@@ -137,3 +137,4 @@ Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 =head1 AUTHOR
 
 Christopher J. Madsen <cjm .at. pobox.com>
+L<http://www.pobox.com/~cjm/vbindiff/>
