@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 #---------------------------------------------------------------------
-# $Id: genfile.pl 4650 2005-10-15 22:47:44Z cjm $
+# $Id: genfile.pl 4653 2005-11-12 04:31:57Z cjm $
 # Copyright 2005 Christopher J. Madsen
 #
 # Process files through Template Toolkit
@@ -27,12 +27,12 @@ use Getopt::Long;
 use Template;
 
 #---------------------------------------------------------------------
-my ($outfile, @vars);
+my ($redirect, @vars);
 
 Getopt::Long::config(qw(bundling no_getopt_compat));
 GetOptions(
     'define|D=s' => \@vars,
-    'output|o=s' => \$outfile,
+    'output|o=s' => \$redirect,
 );
 
 # Filenames are relative to initial working directory:
@@ -69,7 +69,7 @@ foreach my $file (@ARGV) {
   # and skip the line after it:
   $output =~ s/^\s*([>|].+)\n.*\n// or die;
   # The user can override this with the --output option:
-  $outfile = $1 unless defined $outfile;
+  my $outfile = ($redirect || $1);
 
   open(OUT, $outfile) or die;
   print OUT $output   or die;
