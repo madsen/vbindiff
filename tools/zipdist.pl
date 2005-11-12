@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: zipdist.pl 4644 2005-10-07 21:43:10Z cjm $
+# $Id: zipdist.pl 4654 2005-11-12 04:32:45Z cjm $
 # Copyright 2005 Christopher J. Madsen
 #
 # Generate the Win32 distribution ZIP file
@@ -94,7 +94,7 @@ getFrom('\emacs\21.3\etc\COPYING', 'COPYING.txt');
 
 # Create ZIP file:
 
-my $zip = sprintf "VBinDiff_%d%02d.zip", $major, $minor;
+my $zip = sprintf "VBinDiff-%s.%s.zip", $major, $minor;
 
 makeZip($zip, 'j', qw(AUTHORS.txt COPYING.txt
                       win32/Release/VBinDiff.exe VBinDiff.txt
