@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: website.pl 4651 2005-11-11 22:16:57Z cjm $
+# $Id: website.pl 4687 2007-03-19 03:09:45Z cjm $
 # Copyright 2005 Christopher J. Madsen
 #
 # Generate VBinDiff documents for my website
@@ -8,11 +8,34 @@
 
 use strict;
 use FindBin '$Bin';
+use IO::All;
 
 chdir $Bin or die;
 
-system(qw(./genfile.pl -D HTML vbindiff.pod.tt -o),
-'| pod2html --noindex --outfile ~/comcast/out/vbindiff/VBinDiff-curses.html');
+#---------------------------------------------------------------------
+sub toHTML
+{
+  my $outfile = pop @_;
 
-system(qw(./genfile.pl -D HTML -D Win32 vbindiff.pod.tt -o),
-'| pod2html --noindex --outfile ~/comcast/out/vbindiff/VBinDiff-Win32.html');
+  $outfile =~ s!^~!$ENV{HOME}!;
+
+  system(qw(./genfile.pl -D HTML), @_,
+         -o => "| pod2html --noindex --outfile $outfile");
+
+  system(qw(tidy -q -m -ashtml), $outfile);
+
+  my $line = io($outfile);
+
+  $line->[0] = <<'';
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+      "http://www.w3.org/TR/html4/loose.dtd">
+
+  foreach (@$line) {
+    s/id="[^"_]*_[^"]*"//g; # Get rid of invalid id's inserted by tidy
+  }
+} # end toHTML
+
+#---------------------------------------------------------------------
+toHTML(qw(vbindiff.pod.tt ~/web/out/vbindiff/VBinDiff-curses.html));
+
+toHTML(qw(-D Win32 vbindiff.pod.tt ~/web/out/vbindiff/VBinDiff-Win32.html));
