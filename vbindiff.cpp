@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4731 2008-03-21 18:51:07Z cjm $
+// $Id: vbindiff.cpp 4732 2008-03-21 22:02:46Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -899,10 +899,16 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
       break;
 
      case 0x02:                 // Ctrl-B
-     case KEY_LEFT:   if (i)       --i;  break;
+     case KEY_LEFT:
+      if (i) --i;
+      if (splitHex && (i % 3 == 2)) --i;
+      break;
 
      case 0x06:                 // Ctrl-F
-     case KEY_RIGHT:  if (i < len) ++i;  break;
+     case KEY_RIGHT:
+      if (i < len) ++i;
+      if (splitHex && (i < maxLen) && (i % 3 == 2)) ++i;
+      break;
 
      case 0x04:                 // Ctrl-D
      case KEY_DC:
@@ -930,19 +936,30 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
      default:
       if (isprint(key) && (!restrict || strchr(restrict, key))) {
         if (insert) {
-          if (len >= maxLen) continue;
-          // FIXME if splitHex
-          memmove(buf + i + 1, buf + i, maxLen - i - 1);
-          buf[i++] = key;
-          ++len;
-        } else {
+          if (splitHex) {
+            if (buf[i] == ' ') {
+              if (i >= maxLen) continue;
+            } else {
+              if (len >= maxLen) continue;
+              i -= i % 3;
+              memmove(buf + i + 3, buf + i, maxLen - i - 3);
+              buf[i+1] = ' ';
+              len += 3;
+            }
+          } // end if splitHex mode
+          else {
+            if (len >= maxLen) continue;
+            memmove(buf + i + 1, buf + i, maxLen - i - 1);
+            ++len;
+          } // end else not splitHex mode
+        } else { // overstrike mode
           if (i >= maxLen) continue;
-          buf[i++] = key;
-          if (splitHex && (i < maxLen) && (i % 3 == 2))
-            ++i;
-          if (i > len) len = i;
         } // end else overstrike mode
-      }
+        buf[i++] = key;
+        if (splitHex && (i < maxLen) && (i % 3 == 2))
+          ++i;
+        if (i > len) len = i;
+      } // end if is acceptable character to insert
     } // end switch key
   } // end while
 
