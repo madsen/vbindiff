@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4617 2005-03-23 23:04:29Z cjm $
+// $Id: ConWin.cpp 4731 2008-03-21 18:51:07Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -12,8 +12,6 @@
 #include "config.h"
 
 #include "ConWin.hpp"
-
-static const COORD ZeroC = {0, 0};
 
 void exitMsg(int status, const char* message); // From vbindiff.cpp
 
@@ -162,6 +160,9 @@ int ConWindow::readKey()
    case VK_BACK:    return KEY_BACKSPACE;
    case VK_RETURN:  return KEY_RETURN;
    case VK_DELETE:  return KEY_DELETE;
+   case VK_INSERT:  return KEY_IC;
+   case VK_HOME:    return KEY_HOME;
+   case VK_END:     return KEY_END;
    case VK_UP:      return KEY_UP;
    case VK_DOWN:    return KEY_DOWN;
    case VK_LEFT:    return KEY_LEFT;
@@ -174,12 +175,13 @@ int ConWindow::readKey()
 //--------------------------------------------------------------------
 // Make the cursor visible:
 
-void ConWindow::showCursor()
+void ConWindow::showCursor(bool insert)
 {
   CONSOLE_CURSOR_INFO  info;
 
   if (GetConsoleCursorInfo(scrBuf, &info)) {
     info.bVisible = TRUE;
+    info.dwSize = (insert ? 10 : 100);
     SetConsoleCursorInfo(scrBuf, &info);
   }
 } // end ConWindow::showCursor
@@ -402,16 +404,21 @@ void ConWindow::setCursor(short x, short y)
 // Display the window on the screen:
 //
 // This is the only function that actually displays anything.
+//
+// Input:
+//   margin:  Exclude this many characters around the edge (default 0)
 
-void ConWindow::update()
+void ConWindow::update(unsigned short margin)
 {
   SMALL_RECT r;
-  r.Left   = pos.X;
-  r.Top    = pos.Y;
-  r.Right  = pos.X + size.X - 1;
-  r.Bottom = pos.Y + size.Y - 1;
+  r.Left   = pos.X + margin;
+  r.Top    = pos.Y + margin;
+  r.Right  = pos.X + size.X - 1 - margin;
+  r.Bottom = pos.Y + size.Y - 1 - margin;
 
-  WriteConsoleOutput(scrBuf, data, size, ZeroC, &r);
+  const COORD offset = {margin, margin};
+
+  WriteConsoleOutput(scrBuf, data, size, offset, &r);
 } // end ConWindow::update
 
 //--------------------------------------------------------------------

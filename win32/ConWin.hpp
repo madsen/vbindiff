@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4617 2005-03-23 23:04:29Z cjm $
+// $Id: ConWin.hpp 4731 2008-03-21 18:51:07Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -17,6 +17,7 @@
 #define KEY_TAB    0x09
 #define KEY_DC     0x107F       // Not used
 #define KEY_DELETE 0x7F
+#define KEY_IC     0513
 #define KEY_RETURN 0x0D
 
 #define KEY_DOWN        0402            /* down-arrow key */
@@ -24,6 +25,7 @@
 #define KEY_LEFT        0404            /* left-arrow key */
 #define KEY_RIGHT       0405            /* right-arrow key */
 #define KEY_HOME        0406            /* home key */
+#define KEY_END         0550            /* end key */
 #define KEY_BACKSPACE   0407            /* backspace key */
 
 
@@ -68,7 +70,7 @@ class ConWindow
   void resize(short width, short height);
   void setAttribs(Style color);
   void setCursor(short x, short y);
-  void update();
+  void update(unsigned short margin=0);
 
   void hide() {};
   void show() {};
@@ -76,7 +78,7 @@ class ConWindow
   static void getScreenSize(int& x, int& y);
   static void hideCursor();
   static void readKey(KEY_EVENT_RECORD& event);
-  static void showCursor();
+  static void showCursor(bool insert=true);
   static void shutdown();
   static bool startup();
 

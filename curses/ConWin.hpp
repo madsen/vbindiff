@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4617 2005-03-23 23:04:29Z cjm $
+// $Id: ConWin.hpp 4731 2008-03-21 18:51:07Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -56,14 +56,14 @@ class ConWindow
   void resize(short width, short height);
   void setAttribs(Style color);
   void setCursor(short x, short y);
-  void update() {};
+  void update(unsigned short margin=0) {};
 
   void hide() { hide_panel(pan); };
   void show() { show_panel(pan); };
 
   static void getScreenSize(int& x, int& y) { getmaxyx(curscr, y, x); };
   static void hideCursor()                  { curs_set(0);            };
-  static void showCursor()                  { curs_set(1);            };
+  static void showCursor(bool insert=true)  { curs_set(insert ? 1 : 2); };
   static void shutdown();
   static bool startup();
 }; // end ConWindow

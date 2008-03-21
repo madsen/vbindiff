@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4649 2005-10-13 21:57:26Z cjm $
+// $Id: vbindiff.cpp 4731 2008-03-21 18:51:07Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -860,41 +860,88 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
                bool upcase=false, bool splitHex=false)
 {
   inWin.setCursor(2,1);
-  ConWindow::showCursor();
 
-  bool  done = false;
+  bool  inWinShown = false;
+  bool  done   = false;
+  bool  insert = true;
   int   i = 0;
+  int   len = 0;
+
+  ConWindow::showCursor(insert);
 
   memset(buf, ' ', maxLen);
   buf[maxLen] = '\0';
 
   while (!done) {
     inWin.put(2,1,buf);
-    inWin.update();
+    if (inWinShown) inWin.update(1); // Only update inside the box
+    else { inWin.update();   inWinShown = true; } // Show the input window
     inWin.setCursor(2+i,1);
     int key = inWin.readKey();
     if (upcase) key = toupper(key);
 
     switch (key) {
-     case KEY_RETURN:  buf[i] = '\0';  done = true;  break; // Enter
-     case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
+     case KEY_RETURN:  buf[len] = '\0';  done = true;  break; // Enter
+     case KEY_ESCAPE:  buf[0]   = '\0';  done = true;  break; // ESC
 
      case KEY_BACKSPACE:
-     case KEY_DC:
-     case KEY_LEFT:
-     case KEY_DELETE:
      case 0x08:                 // Backspace
       if (!i) continue;
-      if (splitHex && buf[i-1] == ' ') --i;
-      buf[--i] = ' ';
+      if (splitHex && buf[i-1] == ' ') --i; // FIXME
+      memmove(buf + i - 1, buf + i, maxLen - i);
+      buf[maxLen-1] = ' ';
+      --len;  --i;
       break;
+
+     case KEY_IC:
+      insert = !insert;
+      ConWindow::showCursor(insert);
+      break;
+
+     case 0x02:                 // Ctrl-B
+     case KEY_LEFT:   if (i)       --i;  break;
+
+     case 0x06:                 // Ctrl-F
+     case KEY_RIGHT:  if (i < len) ++i;  break;
+
+     case 0x04:                 // Ctrl-D
+     case KEY_DC:
+     case KEY_DELETE:
+      if (i >= len) continue;
+      // FIXME if splitHex
+      memmove(buf + i, buf + i + 1, maxLen - i - 1);
+      buf[maxLen-1] = ' ';
+      --len;
+      break;
+
+     case 0x0B:                 // Ctrl-K
+      if (len > i) {
+        memset(buf + i, ' ', len - i);
+        len = i;
+      }
+      break;
+
+     case 0x01:                 // Ctrl-A
+     case KEY_HOME: i = 0;  break;
+
+     case 0x05:                 // Ctrl-E
+     case KEY_END: i = len;  break;
 
      default:
       if (isprint(key) && (!restrict || strchr(restrict, key))) {
-        if (i >= maxLen) continue;
-        buf[i++] = key;
-        if (splitHex && (i < maxLen) && (i % 3 == 2))
-          ++i;
+        if (insert) {
+          if (len >= maxLen) continue;
+          // FIXME if splitHex
+          memmove(buf + i + 1, buf + i, maxLen - i - 1);
+          buf[i++] = key;
+          ++len;
+        } else {
+          if (i >= maxLen) continue;
+          buf[i++] = key;
+          if (splitHex && (i < maxLen) && (i % 3 == 2))
+            ++i;
+          if (i > len) len = i;
+        } // end else overstrike mode
       }
     } // end switch key
   } // end while
