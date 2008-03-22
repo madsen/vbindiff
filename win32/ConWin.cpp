@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4731 2008-03-21 18:51:07Z cjm $
+// $Id: ConWin.cpp 4733 2008-03-22 01:03:16Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
@@ -70,14 +70,13 @@ bool ConWindow::startup()
   if (scrBuf == INVALID_HANDLE_VALUE)
     return false;
 
-  if (!SetConsoleActiveScreenBuffer(scrBuf)) {
+  if (!SetConsoleActiveScreenBuffer(scrBuf) ||
+      !SetConsoleMode(scrBuf, 0) ||
+      !GetConsoleMode(inBuf, &origInMode) ||
+      !SetConsoleMode(inBuf, 0)) {
     CloseHandle(scrBuf);
     return false;
   }
-
-  GetConsoleMode(inBuf, &origInMode);
-  SetConsoleMode(inBuf, 0);
-  SetConsoleMode(scrBuf, 0);
 
   return true;
 } // end ConWindow::startup
