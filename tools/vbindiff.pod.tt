@@ -1,4 +1,4 @@
-[% # $Id: vbindiff.pod.tt 4738 2008-06-07 20:27:40Z cjm $ %]
+[% # $Id: vbindiff.pod.tt 4743 2008-06-07 23:35:23Z cjm $ %]
 
 [% IF Win32 %]
    | perl maketxt.pl ../VBinDiff.txt
@@ -82,6 +82,24 @@ moving only one file.)
 The C<Enter> key will advance to the next difference between the files
 (after those already displayed on the screen).  If there are no more
 differences, it moves to the end.
+
+=head2 Line editor
+
+The line editor is used to enter search strings and file positions.
+It uses the basic Emacs-style editing keys.
+
+ Keys
+ -----------------
+ Ctrl-B, Left       Move the cursor one character left
+ Ctrl-F, Right      Move the cursor one character right
+ Ctrl-A, Home       Move to the beginning of the line
+ Ctrl-E, End        Move to the end of the line
+ Ctrl-H, Backspace  Delete the character to the left
+ Ctrl-D, Delete     Delete the character under the cursor
+ Ctrl-K             Delete from cursor to end of line
+ Insert             Toggle between insert & overstrike mode
+ Enter              Finished entering text
+ Esc                Abort the operation
 
 =head2 Editing files
 

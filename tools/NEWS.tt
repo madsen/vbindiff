@@ -1,7 +1,12 @@
-[% # $Id: NEWS.tt 4651 2005-11-11 22:16:57Z cjm $ %]
+[% # $Id: NEWS.tt 4743 2008-06-07 23:35:23Z cjm $ %]
 [% UNLESS Win32 %]
    >../NEWS
 [% END %]
+
+*  7 Jun 2008     VBinDiff 3.0 beta 2
+
+  Improved the line editor (used for entering search strings, etc.)
+  Updated my email address
 
 * 11 Nov 2005     VBinDiff 3.0 beta 1
 
