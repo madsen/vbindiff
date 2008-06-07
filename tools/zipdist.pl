@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: zipdist.pl 4654 2005-11-12 04:32:45Z cjm $
+# $Id: zipdist.pl 4744 2008-06-07 23:42:13Z cjm $
 # Copyright 2005 Christopher J. Madsen
 #
 # Generate the Win32 distribution ZIP file
@@ -65,9 +65,13 @@ sub makeZip
 our ($name, $major, $minor);
 do "$Bin/getversion.pm";
 
+my $zip = sprintf "VBinDiff-%s.%s.zip", $major, $minor;
+
 # Read Makefile.am:
 
 chdir "$Bin/.." or die "Can't cd to $Bin/..: $!";
+
+die "$zip exists" if -e $zip;
 
 my $conf = io('Makefile.am')->scalar;
 
@@ -93,8 +97,6 @@ getFrom('AUTHORS', 'AUTHORS.txt');
 getFrom('\emacs\21.3\etc\COPYING', 'COPYING.txt');
 
 # Create ZIP file:
-
-my $zip = sprintf "VBinDiff-%s.%s.zip", $major, $minor;
 
 makeZip($zip, 'j', qw(AUTHORS.txt COPYING.txt
                       win32/Release/VBinDiff.exe VBinDiff.txt
