@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4732 2008-03-21 22:02:46Z cjm $
+// $Id: vbindiff.cpp 4736 2008-06-07 20:10:07Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -848,6 +848,39 @@ void exitMsg(int status, const char* message)
 } // end exitMsg
 
 //--------------------------------------------------------------------
+// Normalize the hex string in the input window:
+//
+// Input:
+//   buf:  The input buffer
+//   pos:  The position of the cursor in buf
+//   len:  Pointer to the length of the input string
+//
+// Returns:
+//   true:   The input buffer was changed
+//   false:  No changes were necessary
+
+bool normalizeHexString(char* buf, int pos, int* len)
+{
+//  assert(len);
+
+  // Change D_ to 0D:
+  if (pos && buf[pos] == ' ' && buf[pos-1] != ' ') {
+    buf[pos] = buf[pos-1];
+    buf[pos-1] = '0';
+    if (pos == *len) *len += 2;
+    return true;
+  }
+
+  // Change _D to 0D:
+  if (pos < *len && buf[pos] == ' ' && buf[pos+1] != ' ') {
+    buf[pos] = '0';
+    return true;
+  }
+
+  return false;                 // No changes necessary
+} // end normalizeHexString
+
+//--------------------------------------------------------------------
 // Get a string using inWin:
 //
 // Input:
@@ -872,6 +905,10 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
   memset(buf, ' ', maxLen);
   buf[maxLen] = '\0';
 
+  // We need to be able to display complete bytes:
+  if (splitHex && (maxLen % 3 == 1)) --maxLen;
+
+  // Main input loop:
   while (!done) {
     inWin.put(2,1,buf);
     if (inWinShown) inWin.update(1); // Only update inside the box
@@ -881,16 +918,54 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
     if (upcase) key = toupper(key);
 
     switch (key) {
-     case KEY_RETURN:  buf[len] = '\0';  done = true;  break; // Enter
-     case KEY_ESCAPE:  buf[0]   = '\0';  done = true;  break; // ESC
+     case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
+
+     case KEY_RETURN:           // Enter
+      if (splitHex) normalizeHexString(buf, i, &len);
+      buf[len] = '\0';
+      done = true;
+      break;
 
      case KEY_BACKSPACE:
      case 0x08:                 // Backspace
-      if (!i) continue;
-      if (splitHex && buf[i-1] == ' ') --i; // FIXME
-      memmove(buf + i - 1, buf + i, maxLen - i);
-      buf[maxLen-1] = ' ';
-      --len;  --i;
+      if (!i) continue; // Can't back up if we're at the beginning already
+      if (splitHex) {
+        if ((i % 3) == 0) {
+          // At the beginning of a byte; erase last digit of previous byte:
+          if (i == len) len -= 2;
+          i -= 2;
+          buf[i] = ' ';
+        } else if (i < len && buf[i] != ' ') {
+          // On the second digit; erase the first digit:
+          buf[--i] = ' ';
+        } else {
+          // On a blank second digit; delete the entire byte:
+          buf[--i] = ' ';
+          memmove(buf + i, buf + i + 3, maxLen - i - 3);
+          len -= 3;
+          if (len < i) len = i;
+        }
+      } else { // not splitHex mode
+        memmove(buf + i - 1, buf + i, maxLen - i);
+        buf[maxLen-1] = ' ';
+        --len;  --i;
+      } // end else not splitHex mode
+      break;
+
+     case 0x04:                 // Ctrl-D
+     case KEY_DC:
+     case KEY_DELETE:
+      if (i >= len) continue;
+      if (splitHex) {
+        i -= i%3;
+        memmove(buf + i, buf + i + 3, maxLen - i - 3);
+        len -= 3;
+        if (len < i) len = i;
+      } else {
+        memmove(buf + i, buf + i + 1, maxLen - i - 1);
+        buf[maxLen-1] = ' ';
+        --len;
+      } // end else not splitHex mode
       break;
 
      case KEY_IC:
@@ -900,24 +975,24 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
 
      case 0x02:                 // Ctrl-B
      case KEY_LEFT:
-      if (i) --i;
-      if (splitHex && (i % 3 == 2)) --i;
+      if (i) {
+        --i;
+        if (splitHex) {
+          normalizeHexString(buf, i+1, &len);
+          if (i % 3 == 2) --i;
+        }
+      }
       break;
 
      case 0x06:                 // Ctrl-F
      case KEY_RIGHT:
-      if (i < len) ++i;
-      if (splitHex && (i < maxLen) && (i % 3 == 2)) ++i;
-      break;
-
-     case 0x04:                 // Ctrl-D
-     case KEY_DC:
-     case KEY_DELETE:
-      if (i >= len) continue;
-      // FIXME if splitHex
-      memmove(buf + i, buf + i + 1, maxLen - i - 1);
-      buf[maxLen-1] = ' ';
-      --len;
+      if (i < len) {
+        ++i;
+        if (splitHex) {
+          normalizeHexString(buf, i-1, &len);
+          if ((i < maxLen) && (i % 3 == 2)) ++i;
+        }
+      }
       break;
 
      case 0x0B:                 // Ctrl-K
@@ -928,10 +1003,17 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
       break;
 
      case 0x01:                 // Ctrl-A
-     case KEY_HOME: i = 0;  break;
+     case KEY_HOME:
+      if (splitHex) normalizeHexString(buf, i, &len);
+      i = 0;
+      break;
 
      case 0x05:                 // Ctrl-E
-     case KEY_END: i = len;  break;
+     case KEY_END:
+      if (splitHex && (i < len))
+        normalizeHexString(buf, i, &len);
+      i = len;
+      break;
 
      default:
       if (isprint(key) && (!restrict || strchr(restrict, key))) {
