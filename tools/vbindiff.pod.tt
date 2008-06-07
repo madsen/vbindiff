@@ -1,4 +1,4 @@
-[% # $Id: vbindiff.pod.tt 4652 2005-11-11 22:20:50Z cjm $ %]
+[% # $Id: vbindiff.pod.tt 4738 2008-06-07 20:27:40Z cjm $ %]
 
 [% IF Win32 %]
    | perl maketxt.pl ../VBinDiff.txt
@@ -27,7 +27,7 @@ print $line
 
 [% END %]
  ===============================================================================
-                                      Copyright 1995-2005 Christopher J. Madsen
+                                      Copyright 1995-2008 Christopher J. Madsen
 [% ELSE %]
 vbindiff - hexadecimal file display and comparison
 [% END %]
@@ -58,16 +58,17 @@ large files (up to 4 GB).
  F       Search for a string or byte sequence
  G       Move to a specified file position
 
+When displaying two files, both files move together.  If bytes have
+been added or removed in one of the files, you can adjust the
+comparison by moving just one of the files.
 [% IF Win32 %]
-When displaying two files, holding down Alt while using the movement
-keys will scroll only the bottom file.  Holding down Ctrl will scroll
-only the top file.
+Holding down Alt while using the movement keys will scroll only the
+bottom file.  Holding down Ctrl will scroll only the top file.
 [% ELSE %]
-When displaying two files, both files move together.  To move only the
-top file, press C<T>.  To move only the bottom file, press C<B>.  To
-return to moving both files, press the same key again.  (The window at
-the bottom of the screen will indicate when you are moving only one
-file.)
+To move only the top file, press C<T>.  To move only the bottom file,
+press C<B>.  To return to moving both files, press the same key again.
+(The window at the bottom of the screen will indicate when you are
+moving only one file.)
 [% END %]
 
  Other Keys
@@ -136,5 +137,5 @@ Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 =head1 AUTHOR
 
-Christopher J. Madsen <cjm .at. pobox.com>
-L<http://www.pobox.com/~cjm/vbindiff/>
+Christopher J. Madsen <vbindiff .at. cjmweb.net>
+L<http://www.cjmweb.net/vbindiff/>

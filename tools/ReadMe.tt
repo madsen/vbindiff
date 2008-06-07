@@ -1,4 +1,4 @@
-[% # $Id: ReadMe.tt 4649 2005-10-13 21:57:26Z cjm $ %]
+[% # $Id: ReadMe.tt 4738 2008-06-07 20:27:40Z cjm $ %]
 
 [% IF Win32 %]
    [% outputFile = 'ReadMe.txt' %]
@@ -26,7 +26,7 @@ print $line
 
 [% END %]
 ===============================================================================
-                                         Copyright 2000-5 Christopher J. Madsen
+                                      Copyright 2000-2008 Christopher J. Madsen
 CONTENTS
 ========
 [% PERL %]
@@ -142,9 +142,9 @@ The GNU General Public License can be found in the file COPYING[% '.txt' IF Win3
 [% END %]
 [% section('Author') %]
 
-Christopher J. Madsen           cjm@pobox.com
+Christopher J. Madsen           vbindiff AT cjmweb.net
 1113 Abrams Rd. Apt. 296
 Richardson, TX  75081-5573
 
 VBinDiff Home Page:
-http://www.pobox.com/~cjm/vbindiff/
+http://www.cjmweb.net/vbindiff/
