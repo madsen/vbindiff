@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.rc 4644 2005-10-07 21:43:10Z cjm $
+// $Id: vbindiff.rc 4742 2008-06-07 23:00:19Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 2005 by Christopher J. Madsen
+//   Copyright 2008 by Christopher J. Madsen
 //
 //   Resource script for vbindiff.exe
 //
@@ -61,7 +61,7 @@ BEGIN
             VALUE "FileDescription", "Visual Binary Diff\0"
             VALUE "FileVersion", PACKAGE_VERSION "\0"
             VALUE "InternalName", "VBinDiff\0"
-            VALUE "LegalCopyright", "Copyright 2005 Christopher J. Madsen\0"
+            VALUE "LegalCopyright", "Copyright 2008 Christopher J. Madsen\0"
             VALUE "OriginalFilename", "VBinDiff.exe\0"
             VALUE "ProductName", "Visual Binary Diff\0"
             VALUE "ProductVersion", PACKAGE_VERSION "\0"

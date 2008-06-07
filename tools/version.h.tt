@@ -1,8 +1,32 @@
 >../win32/version.h
 ----------------------------------------------------------------------
+[% PERL %]
+
+# Compute a numeric version:
+my $major   = $stash->get('major');
+my $minor   = $stash->get('minor');
+my $type    = 1000;               # Normal release
+my $release = 0;
+
+if ($minor =~ s/^(\d+)_alpha(\d+)$/$1/) {
+  $type = 100;
+  $release = $2;
+} elsif ($minor =~ s/^(\d+)_beta(\d+)$/$1/) {
+  $type = 200;
+  $release = $2;
+} elsif ($minor =~ s/^(\d+)_rc(\d+)$/$1/) {
+  $type = 300;
+  $release = $2;
+} else {
+  die "Can't understand $minor" unless $minor =~ /^\d+$/;
+}
+
+$stash->set(numeric_version => "$major,$minor,$type,$release");
+
+[% END %]
 #ifndef PACKAGE_VERSION
 
 #define PACKAGE_VERSION    "[% major %].[% minor %]"
-#define PACKAGE_VERSION_NUM [% major %],[% minor + 0 %],0,0
+#define PACKAGE_VERSION_NUM [% numeric_version %]
 
 #endif /* not PACKAGE_VERSION */
