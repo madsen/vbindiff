@@ -3,7 +3,7 @@ VBinDiff with the popular PuTTY terminal emulator:
 
   http://www.chiark.greenend.org.uk/~sgtatham/putty/
 
-The first problem is that by default, PuTTY identifies itself as an
+The first problem is that, by default, PuTTY identifies itself as an
 "xterm".  But its xterm emulation is not completely accurate, and it
 so happens that VBinDiff triggers the problem.  When using VBinDiff
 with the "xterm" terminal type, you'll notice that the background
