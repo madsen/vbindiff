@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4733 2008-03-22 01:03:16Z cjm $
+// $Id: ConWin.cpp 4741 2008-06-07 22:26:28Z cjm $
 //--------------------------------------------------------------------
 //
 //   VBinDiff
-//   Copyright 1997 by Christopher J. Madsen
+//   Copyright 1997-2008 by Christopher J. Madsen
 //
 //   Support class for console mode applications
 //
@@ -158,7 +158,7 @@ int ConWindow::readKey()
    case VK_TAB:     return KEY_TAB;
    case VK_BACK:    return KEY_BACKSPACE;
    case VK_RETURN:  return KEY_RETURN;
-   case VK_DELETE:  return KEY_DELETE;
+   case VK_DELETE:  return KEY_DC;
    case VK_INSERT:  return KEY_IC;
    case VK_HOME:    return KEY_HOME;
    case VK_END:     return KEY_END;

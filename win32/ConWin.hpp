@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.hpp 4731 2008-03-21 18:51:07Z cjm $
+// $Id: ConWin.hpp 4741 2008-06-07 22:26:28Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -15,8 +15,8 @@
 
 #define KEY_ESCAPE 0x1B
 #define KEY_TAB    0x09
-#define KEY_DC     0x107F       // Not used
-#define KEY_DELETE 0x7F
+#define KEY_DC     0x7F
+#define KEY_DELETE 0x107F       // Not used
 #define KEY_IC     0513
 #define KEY_RETURN 0x0D
 

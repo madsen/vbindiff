@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4738 2008-06-07 20:27:40Z cjm $
+// $Id: vbindiff.cpp 4741 2008-06-07 22:26:28Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -927,7 +927,8 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
       break;
 
      case KEY_BACKSPACE:
-     case 0x08:                 // Backspace
+     case KEY_DELETE:           // Backspace on most Unix terminals
+     case 0x08:                 // Backspace (Ctrl-H)
       if (!i) continue; // Can't back up if we're at the beginning already
       if (splitHex) {
         if ((i % 3) == 0) {
@@ -954,7 +955,6 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
 
      case 0x04:                 // Ctrl-D
      case KEY_DC:
-     case KEY_DELETE:
       if (i >= len) continue;
       if (splitHex) {
         i -= i%3;
