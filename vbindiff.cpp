@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4741 2008-06-07 22:26:28Z cjm $
+// $Id: vbindiff.cpp 4746 2008-06-08 02:44:34Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -498,11 +498,12 @@ bool FileDisplay::edit(const FileDisplay* other)
            newByte = key - '0';
          else if (isxdigit(key))
            newByte = toupper(key) - 'A' + 10;
-         if (newByte >= 0)
+         if (newByte >= 0) {
            if (hiNib)
              newByte = (newByte * 0x10) | (0x0F & data->line[y][x]);
            else
              newByte |= 0xF0 & data->line[y][x];
+         } // end if valid digit entered
        } // end else hex
        if (newByte >= 0) {
          changed = true;
@@ -1448,17 +1449,19 @@ void handleCmd(Command cmd)
       else
         file2.moveToEnd(NULL);
     } else {
-      if (cmd & cmmMoveTop)
+      if (cmd & cmmMoveTop) {
         if (step)
           file1.move(step);
         else
           file1.moveTo(0);
+      } // end if moving top file
 
-      if (cmd & cmmMoveBottom)
+      if (cmd & cmmMoveBottom) {
         if (step)
           file2.move(step);
         else
           file2.moveTo(0);
+      } // end if moving bottom file
     } // end else not moving to end
   } // end if move
   else if ((cmd & cmgGotoMask) == cmgGoto)
