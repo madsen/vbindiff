@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4746 2008-06-08 02:44:34Z cjm $
+// $Id: vbindiff.cpp 4747 2008-06-09 21:26:30Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <string>
 using namespace std;
 
 #include "GetOpt/GetOpt.hpp"
@@ -53,6 +54,15 @@ typedef unsigned short  Word;
 typedef Byte  Command;
 
 enum LockState { lockNeither = 0, lockTop, lockBottom };
+
+//--------------------------------------------------------------------
+// Strings:
+
+typedef string  String;
+
+typedef String::size_type      StrIdx;
+typedef String::iterator       StrItr;
+typedef String::const_iterator StrConstItr;
 
 //====================================================================
 // Constants:
@@ -98,6 +108,8 @@ const int  screenWidth = 80;
 
 const int  maxPath = 260;
 
+const char hexDigits[] = "0123456789ABCDEF";
+
 #include "tables.h"             // ASCII and EBCDIC tables
 
 //====================================================================
@@ -140,7 +152,7 @@ class FileDisplay
   const Byte*  getBuffer() const { return data->buffer; };
   void         move(int step)    { moveTo(offset + step); };
   void         moveTo(FPos newOffset);
-  bool         moveTo(Byte* searchFor, int searchLen);
+  bool         moveTo(const Byte* searchFor, int searchLen);
   void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
  protected:
@@ -167,6 +179,7 @@ class Difference
 //====================================================================
 // Global Variables:
 
+String       lastSearch;
 ConWindow    promptWin,inWin;
 FileDisplay  file1, file2;
 Difference   diffs(&file1, &file2);
@@ -183,6 +196,18 @@ int  linesBetween = 1;    // Number of lines of padding between files
 //   See cmmMoveByte, cmmMoveLine, cmmMovePage
 int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 
+
+//====================================================================
+// Miscellaneous Functions:
+//--------------------------------------------------------------------
+// Convert a character to uppercase:
+//
+// The standard toupper(c) isn't guaranteed for arbitrary integers.
+
+int safeUC(int c)
+{
+  return (c >= 'a' && c <= 'z') ? toupper(c) : c;
+} // end safeUC
 
 //====================================================================
 // Class Difference:
@@ -497,7 +522,7 @@ bool FileDisplay::edit(const FileDisplay* other)
          if (isdigit(key))
            newByte = key - '0';
          else if (isxdigit(key))
-           newByte = toupper(key) - 'A' + 10;
+           newByte = safeUC(key) - 'A' + 10;
          if (newByte >= 0) {
            if (hiNib)
              newByte = (newByte * 0x10) | (0x0F & data->line[y][x]);
@@ -535,7 +560,7 @@ bool FileDisplay::edit(const FileDisplay* other)
     promptWin.update();
     promptWin.setCursor(50,1);
     key = promptWin.readKey();
-    if (toupper(key) != 'Y') {
+    if (safeUC(key) != 'Y') {
       changed = false;
       moveTo(offset);           // Re-read buffer contents
     } else {
@@ -634,9 +659,9 @@ void FileDisplay::moveTo(FPos newOffset)
 //   true:   The search was successful
 //   false:  Search unsuccessful, file not moved
 
-bool FileDisplay::moveTo(Byte* searchFor, int searchLen)
+bool FileDisplay::moveTo(const Byte* searchFor, int searchLen)
 {
-  if (!fileName[0]) return false; // No file
+  if (!fileName[0]) return true; // No file, pretend success
 
   // Using algorithm based on QuickSearch:
   //   http://www-igm.univ-mlv.fr/~lecroq/string/node19.htm
@@ -888,7 +913,7 @@ bool normalizeHexString(char* buf, int pos, int* len)
 //   buf:       The buffer where the string will be stored
 //   maxLen:    The maximum number of chars to accept (not including NUL byte)
 //   restrict:  If not NULL, accept only chars in this string
-//   upcase:    If true, convert all chars with toupper
+//   upcase:    If true, convert all chars with safeUC
 
 void getString(char* buf, int maxLen, const char* restrict=NULL,
                bool upcase=false, bool splitHex=false)
@@ -916,7 +941,7 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
     else { inWin.update();   inWinShown = true; } // Show the input window
     inWin.setCursor(2+i,1);
     int key = inWin.readKey();
-    if (upcase) key = toupper(key);
+    if (upcase) key = safeUC(key);
 
     switch (key) {
      case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
@@ -1226,7 +1251,7 @@ Command getCommand()
   while (cmd == cmNothing) {
     ConWindow::readKey(e);
 
-    switch (toupper(e.uChar.AsciiChar)) {
+    switch (safeUC(e.uChar.AsciiChar)) {
      case KEY_RETURN:           // Enter
       cmd = cmNextDiff;
       break;
@@ -1302,7 +1327,7 @@ Command getCommand()
   while (cmd == cmNothing) {
     int e = promptWin.readKey();
 
-    switch (toupper(e)) {
+    switch (safeUC(e)) {
      case KEY_RETURN:               // Enter
       cmd = cmNextDiff;
       break;
@@ -1367,7 +1392,7 @@ void gotoPosition(Command cmd)
   const int  maxLen = inWidth-2;
   char  buf[maxLen+1];
 
-  getString(buf, maxLen, "0123456789ABCDEF", true);
+  getString(buf, maxLen, hexDigits, true);
 
   if (!buf[0])
     return;
@@ -1385,48 +1410,67 @@ void gotoPosition(Command cmd)
 
 void searchFiles(Command cmd)
 {
-  positionInWin(cmd, 32, " Find ");
+  const bool havePrev = !lastSearch.empty();
+
+  positionInWin(cmd, (havePrev ? 47 : 32), " Find ");
 
   inWin.put(2, 1,"H Hex search   T Text search");
   inWin.putAttribs( 2,1, cPromptKey, 1);
   inWin.putAttribs(17,1, cPromptKey, 1);
+  if (havePrev) {
+    inWin.put(33, 1,"N Next match");
+    inWin.putAttribs(33,1, cPromptKey, 1);
+  }
   inWin.update();
-  int key = inWin.readKey();
+  int key = safeUC(inWin.readKey());
 
   bool hex = false;
 
   if (key == KEY_ESCAPE) {
     inWin.hide();
     return;
-  } else if (toupper(key) == 'H')
+  } else if (key == 'H')
     hex = true;
 
-  positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
-
-  const int  maxLen = screenWidth-4;
-  Byte  buf[maxLen+1];
-  int   searchLen;
-
-  if (hex) {
-    getString(reinterpret_cast<char*>(buf), maxLen, "0123456789ABCDEF",
-              true, true);
-    searchLen = packHex(buf);
+  if (key == 'N' && havePrev) {
+    inWin.hide();
   } else {
-    getString(reinterpret_cast<char*>(buf), maxLen);
+    positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
 
-    searchLen = strlen(reinterpret_cast<char*>(buf));
-    if (displayTable == ebcdicDisplayTable) {
-      for (int i = 0; i < searchLen; ++i)
-        buf[i] = ascii2ebcdicTable[buf[i]];
-    } // end if in EBCDIC mode
-  } // end else text search
+    const int  maxLen = screenWidth-4;
+    Byte  buf[maxLen+1];
+    int   searchLen;
 
-  if (!searchLen) return;
+    if (hex) {
+      getString(reinterpret_cast<char*>(buf), maxLen, hexDigits, true, true);
+      searchLen = packHex(buf);
+    } else {
+      getString(reinterpret_cast<char*>(buf), maxLen);
 
-  if (cmd & cmgGotoTop)
-    file1.moveTo(buf, searchLen);
-  if (cmd & cmgGotoBottom)
-    file2.moveTo(buf, searchLen);
+      searchLen = strlen(reinterpret_cast<char*>(buf));
+      if (displayTable == ebcdicDisplayTable) {
+        for (int i = 0; i < searchLen; ++i)
+          buf[i] = ascii2ebcdicTable[buf[i]];
+      } // end if in EBCDIC mode
+    } // end else text search
+
+    if (!searchLen) return;
+
+    lastSearch.assign(reinterpret_cast<char*>(buf), searchLen);
+  } // end else need to read search string
+
+  bool problem = false;
+  const Byte *const  searchPattern =
+    reinterpret_cast<const Byte*>(lastSearch.c_str());
+
+  if ((cmd & cmgGotoTop) &&
+      !file1.moveTo(searchPattern, lastSearch.length()))
+    problem = true;
+  if ((cmd & cmgGotoBottom) &&
+      !file2.moveTo(searchPattern, lastSearch.length()))
+    problem = true;
+
+  if (problem) beep();
 } // end searchFiles
 
 //--------------------------------------------------------------------
