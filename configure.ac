@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-# $Id: configure.ac 4747 2008-06-09 21:26:30Z cjm $
+# $Id: configure.ac 4748 2008-06-10 04:45:52Z cjm $
 
 AC_PREREQ(2.59)
 AC_INIT([[Visual Binary Diff]], [[3.0_beta3]], [[vbindiff AT cjmweb.net]], [[vbindiff]])
@@ -8,7 +8,7 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_SRCDIR([vbindiff.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_LANG([C++])
-AC_REVISION($Revision: 4747 $)
+AC_REVISION($Revision: 4748 $)
 
 # Checks for programs.
 AC_PROG_CXX
@@ -22,7 +22,7 @@ AC_CHECK_LIB([panel], [new_panel], ,
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([errno.h fcntl.h panel.h stdlib.h string.h unistd.h])
+AC_CHECK_HEADERS([errno.h fcntl.h limits.h panel.h stdlib.h string.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL

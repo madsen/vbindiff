@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4747 2008-06-09 21:26:30Z cjm $
+// $Id: vbindiff.cpp 4748 2008-06-10 04:45:52Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -25,13 +25,16 @@
 #include "config.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <map>
 #include <string>
+#include <vector>
 using namespace std;
 
 #include "GetOpt/GetOpt.hpp"
@@ -63,6 +66,23 @@ typedef string  String;
 typedef String::size_type      StrIdx;
 typedef String::iterator       StrItr;
 typedef String::const_iterator StrConstItr;
+
+//--------------------------------------------------------------------
+// Vectors:
+
+typedef vector<String>          StrVec;
+typedef StrVec::iterator        SVItr;
+typedef StrVec::const_iterator  SVConstItr;
+
+typedef StrVec::size_type  VecSize;
+
+//--------------------------------------------------------------------
+// Map:
+
+typedef map<VecSize, String>    StrMap;
+typedef StrMap::value_type      SMVal;
+typedef StrMap::iterator        SMItr;
+typedef StrMap::const_iterator  SMConstItr;
 
 //====================================================================
 // Constants:
@@ -107,6 +127,8 @@ const int  inWidth = 10;        // Width of input window (excluding border)
 const int  screenWidth = 80;
 
 const int  maxPath = 260;
+
+const VecSize maxHistory = 2000;
 
 const char hexDigits[] = "0123456789ABCDEF";
 
@@ -176,10 +198,38 @@ class Difference
   void resize();
 }; // end Difference
 
+class InputManager
+{
+ private:
+  char*        buf;             // The editing buffer
+  const char*  restrict;        // If non-NULL, only allow these chars
+  StrVec&      history;         // The history vector to use
+  StrMap       historyOverlay;  // Overlay of modified history entries
+  VecSize      historyPos;      // The current offset into history[]
+  int          maxLen;          // The size of buf (not including NUL)
+  int          len;             // The current length of the string
+  int          i;               // The current cursor position
+  bool         upcase;          // Force all characters to uppercase?
+  bool         splitHex;        // Entering space-separated hex bytes?
+  bool         insert;          // False for overstrike mode
+
+ public:
+  InputManager(char* aBuf, int aMaxLen, StrVec& aHistory);
+  bool run();
+  void setCharacters(const char* aRestriction) { restrict = aRestriction; };
+  void setSplitHex(bool val) { splitHex = val; };
+  void setUpcase(bool val)   { upcase = val; };
+
+ private:
+  bool normalize(int pos);
+  void useHistory(int delta);
+}; // end InputManager
+
 //====================================================================
 // Global Variables:
 
 String       lastSearch;
+StrVec       hexSearchHistory, textSearchHistory, positionHistory;
 ConWindow    promptWin,inWin;
 FileDisplay  file1, file2;
 Difference   diffs(&file1, &file2);
@@ -206,7 +256,7 @@ int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 
 int safeUC(int c)
 {
-  return (c >= 'a' && c <= 'z') ? toupper(c) : c;
+  return (c >= 0 && c <= UCHAR_MAX) ? toupper(c) : c;
 } // end safeUC
 
 //====================================================================
@@ -874,37 +924,37 @@ void exitMsg(int status, const char* message)
 } // end exitMsg
 
 //--------------------------------------------------------------------
-// Normalize the hex string in the input window:
+// Normalize the string in the input window:
+//
+// Does nothing unless splitHex mode is active.
 //
 // Input:
-//   buf:  The input buffer
 //   pos:  The position of the cursor in buf
-//   len:  Pointer to the length of the input string
 //
 // Returns:
 //   true:   The input buffer was changed
 //   false:  No changes were necessary
 
-bool normalizeHexString(char* buf, int pos, int* len)
+bool InputManager::normalize(int pos)
 {
-//  assert(len);
+  if (!splitHex) return false;
 
   // Change D_ to 0D:
   if (pos && buf[pos] == ' ' && buf[pos-1] != ' ') {
     buf[pos] = buf[pos-1];
     buf[pos-1] = '0';
-    if (pos == *len) *len += 2;
+    if (pos == len) len += 2;
     return true;
   }
 
   // Change _D to 0D:
-  if (pos < *len && buf[pos] == ' ' && buf[pos+1] != ' ') {
+  if (pos < len && buf[pos] == ' ' && buf[pos+1] != ' ') {
     buf[pos] = '0';
     return true;
   }
 
   return false;                 // No changes necessary
-} // end normalizeHexString
+} // end InputManager::normalize
 
 //--------------------------------------------------------------------
 // Get a string using inWin:
@@ -912,19 +962,59 @@ bool normalizeHexString(char* buf, int pos, int* len)
 // Input:
 //   buf:       The buffer where the string will be stored
 //   maxLen:    The maximum number of chars to accept (not including NUL byte)
+//   history:   The history vector to use
 //   restrict:  If not NULL, accept only chars in this string
 //   upcase:    If true, convert all chars with safeUC
 
-void getString(char* buf, int maxLen, const char* restrict=NULL,
+void getString(char* buf, int maxLen, StrVec& history,
+               const char* restrict=NULL,
                bool upcase=false, bool splitHex=false)
+{
+  InputManager  manager(buf, maxLen, history);
+
+  manager.setCharacters(restrict);
+  manager.setSplitHex(splitHex);
+  manager.setUpcase(upcase);
+
+  manager.run();
+} // end getString
+
+//--------------------------------------------------------------------
+// Construct the InputManager object:
+//
+// Input:
+//   aBuf:      The buffer where the string will be stored
+//   aMaxLen:   The maximum number of chars to accept (not including NUL byte)
+//   aHistory:  The history vector to use
+
+InputManager::InputManager(char* aBuf, int aMaxLen, StrVec& aHistory)
+: buf(aBuf),
+  restrict(NULL),
+  history(aHistory),
+  historyPos(aHistory.size()),
+  maxLen(aMaxLen),
+  len(0),
+  i(0),
+  upcase(false),
+  splitHex(false),
+  insert(true)
+{
+} // end InputManager
+
+//--------------------------------------------------------------------
+// Run the main loop to get an input string:
+//
+// Returns:
+//   true:   Enter was pressed
+//   false:  Escape was pressed
+
+bool InputManager::run()
 {
   inWin.setCursor(2,1);
 
   bool  inWinShown = false;
   bool  done   = false;
-  bool  insert = true;
-  int   i = 0;
-  int   len = 0;
+  bool  aborted = true;
 
   ConWindow::showCursor(insert);
 
@@ -947,9 +1037,10 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
      case KEY_ESCAPE:  buf[0] = '\0';  done = true;  break; // ESC
 
      case KEY_RETURN:           // Enter
-      if (splitHex) normalizeHexString(buf, i, &len);
+      normalize(i);
       buf[len] = '\0';
       done = true;
+      aborted = false;
       break;
 
      case KEY_BACKSPACE:
@@ -1004,7 +1095,7 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
       if (i) {
         --i;
         if (splitHex) {
-          normalizeHexString(buf, i+1, &len);
+          normalize(i+1);
           if (i % 3 == 2) --i;
         }
       }
@@ -1015,7 +1106,7 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
       if (i < len) {
         ++i;
         if (splitHex) {
-          normalizeHexString(buf, i-1, &len);
+          normalize(i-1);
           if ((i < maxLen) && (i % 3 == 2)) ++i;
         }
       }
@@ -1030,15 +1121,27 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
 
      case 0x01:                 // Ctrl-A
      case KEY_HOME:
-      if (splitHex) normalizeHexString(buf, i, &len);
+      normalize(i);
       i = 0;
       break;
 
      case 0x05:                 // Ctrl-E
      case KEY_END:
       if (splitHex && (i < len))
-        normalizeHexString(buf, i, &len);
+        normalize(i);
       i = len;
+      break;
+
+     case 0x10:                 // Ctrl-P
+     case KEY_UP:
+      if (historyPos == 0) beep();
+      else                 useHistory(-1);
+      break;
+
+     case 0x0E:                 // Ctrl-N
+     case KEY_DOWN:
+      if (historyPos == history.size()) beep();
+      else                              useHistory(+1);
       break;
 
      default:
@@ -1069,11 +1172,60 @@ void getString(char* buf, int maxLen, const char* restrict=NULL,
         if (i > len) len = i;
       } // end if is acceptable character to insert
     } // end switch key
-  } // end while
+  } // end while not done
 
+  // Hide the input window & cursor:
   ConWindow::hideCursor();
   inWin.hide();
-} // end getString
+
+  // Record the result in the history:
+  if (!aborted && len) {
+    String  newValue(buf);
+
+    SVItr  exists = find(history.begin(), history.end(), newValue);
+    if (exists != history.end())
+      // Already in history.  Move it to the end:
+      rotate(exists, exists + 1, history.end());
+    else if (history.size() >= maxHistory) {
+      // History is full.  Replace the first entry & move it to the end:
+      history.front().swap(newValue);
+      rotate(history.begin(), history.begin() + 1, history.end());
+    } else
+      // Just append to history:
+      history.push_back(newValue);
+  } // end if we have a value to store in the history
+
+  return !aborted;
+} // end run
+
+//--------------------------------------------------------------------
+// Switch the current input line with one from the history:
+//
+// Input:
+//   delta:  The number to add to historyPos (-1 previous, +1 next)
+
+void InputManager::useHistory(int delta)
+{
+  // Clean up the current string if necessary:
+  normalize(i);
+
+  // Update the history overlay if necessary:
+  //   We always store the initial value, because it doesn't
+  //   correspond to a valid entry in history.
+  if (len || historyPos == history.size())
+    historyOverlay[historyPos].assign(buf, len);
+
+  // Look for an entry in the overlay:
+  SMItr itr = historyOverlay.find(historyPos += delta);
+
+  String& s = ((itr == historyOverlay.end())
+               ? history[historyPos] : itr->second);
+
+  // Store the new string in the buffer:
+  memset(buf, ' ', maxLen);
+  i = len = min(VecSize(maxLen), s.length());
+  memcpy(buf, s.c_str(), len);
+} // end useHistory
 
 //--------------------------------------------------------------------
 // Convert hex string to bytes:
@@ -1392,7 +1544,7 @@ void gotoPosition(Command cmd)
   const int  maxLen = inWidth-2;
   char  buf[maxLen+1];
 
-  getString(buf, maxLen, hexDigits, true);
+  getString(buf, maxLen, positionHistory, hexDigits, true);
 
   if (!buf[0])
     return;
@@ -1442,10 +1594,10 @@ void searchFiles(Command cmd)
     int   searchLen;
 
     if (hex) {
-      getString(reinterpret_cast<char*>(buf), maxLen, hexDigits, true, true);
+      getString(reinterpret_cast<char*>(buf), maxLen, hexSearchHistory, hexDigits, true, true);
       searchLen = packHex(buf);
     } else {
-      getString(reinterpret_cast<char*>(buf), maxLen);
+      getString(reinterpret_cast<char*>(buf), maxLen, textSearchHistory);
 
       searchLen = strlen(reinterpret_cast<char*>(buf));
       if (displayTable == ebcdicDisplayTable) {

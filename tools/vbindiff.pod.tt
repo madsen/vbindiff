@@ -1,4 +1,4 @@
-[% # $Id: vbindiff.pod.tt 4743 2008-06-07 23:35:23Z cjm $ %]
+[% # $Id: vbindiff.pod.tt 4748 2008-06-10 04:45:52Z cjm $ %]
 
 [% IF Win32 %]
    | perl maketxt.pl ../VBinDiff.txt
@@ -94,6 +94,8 @@ It uses the basic Emacs-style editing keys.
  Ctrl-F, Right      Move the cursor one character right
  Ctrl-A, Home       Move to the beginning of the line
  Ctrl-E, End        Move to the end of the line
+ Ctrl-P, Up         Move up in input history
+ Ctrl-N, Down       Move down in input history
  Ctrl-H, Backspace  Delete the character to the left
  Ctrl-D, Delete     Delete the character under the cursor
  Ctrl-K             Delete from cursor to end of line
