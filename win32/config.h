@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: config.h 4644 2005-10-07 21:43:10Z cjm $
+// $Id: config.h 4749 2008-06-10 05:07:14Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -10,6 +10,9 @@
 //   but are changed infrequently
 //
 //--------------------------------------------------------------------
+
+// Stop complaining about lengthy names of template expansions:
+#pragma warning(disable: 4786)
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

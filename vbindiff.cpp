@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4748 2008-06-10 04:45:52Z cjm $
+// $Id: vbindiff.cpp 4750 2008-06-10 05:07:14Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -249,6 +249,16 @@ int  steps[4] = {1, lineWidth, bufSize-lineWidth, 0};
 
 //====================================================================
 // Miscellaneous Functions:
+//--------------------------------------------------------------------
+// Beep the speaker:
+
+#ifdef WIN32_CONSOLE // beep() is defined by ncurses
+void beep()
+{
+  MessageBeep(-1);
+} // end beep
+#endif // WIN32_CONSOLE
+
 //--------------------------------------------------------------------
 // Convert a character to uppercase:
 //
@@ -1223,7 +1233,7 @@ void InputManager::useHistory(int delta)
 
   // Store the new string in the buffer:
   memset(buf, ' ', maxLen);
-  i = len = min(VecSize(maxLen), s.length());
+  i = len = min(static_cast<VecSize>(maxLen), s.length());
   memcpy(buf, s.c_str(), len);
 } // end useHistory
 
