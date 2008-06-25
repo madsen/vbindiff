@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 4648 2005-10-13 17:09:42Z cjm $
+# $Id: Makefile.am 4751 2008-06-25 02:52:09Z cjm $
 
 bin_PROGRAMS = vbindiff
 dist_man_MANS = vbindiff.1
@@ -24,6 +24,7 @@ EXTRA_DIST = \
 	win32/config.h		\
 	win32/vbindiff.dsp	\
 	win32/vbindiff.dsw	\
+	win32/vbindiff.rc	\
 	win32/version.h
 
 AM_CPPFLAGS = -I$(srcdir)/curses
