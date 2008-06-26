@@ -1,4 +1,4 @@
-[% # $Id: vbindiff.pod.tt 4748 2008-06-10 04:45:52Z cjm $ %]
+[% # $Id: vbindiff.pod.tt 4752 2008-06-26 00:40:57Z cjm $ %]
 
 [% IF Win32 %]
    | perl maketxt.pl ../VBinDiff.txt
@@ -74,6 +74,7 @@ moving only one file.)
  Other Keys
  ----------
  Enter  Move to the next difference between the files
+ Space  (same as Enter)
  C      Toggle between ASCII and EBCDIC display
  E      Edit currently displayed section of file
  Esc    Exit VBinDiff

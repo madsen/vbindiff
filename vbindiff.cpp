@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4750 2008-06-10 05:07:14Z cjm $
+// $Id: vbindiff.cpp 4752 2008-06-26 00:40:57Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -1415,6 +1415,7 @@ Command getCommand()
 
     switch (safeUC(e.uChar.AsciiChar)) {
      case KEY_RETURN:           // Enter
+     case ' ':                  // Space
       cmd = cmNextDiff;
       break;
 
@@ -1490,7 +1491,8 @@ Command getCommand()
     int e = promptWin.readKey();
 
     switch (safeUC(e)) {
-     case KEY_RETURN:               // Enter
+     case KEY_RETURN:           // Enter
+     case ' ':                  // Space
       cmd = cmNextDiff;
       break;
 
