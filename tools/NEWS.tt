@@ -1,4 +1,4 @@
-[% # $Id: NEWS.tt 4752 2008-06-26 00:40:57Z cjm $ %]
+[% # $Id: NEWS.tt 4755 2008-06-26 01:34:55Z cjm $ %]
 [% UNLESS Win32 %]
    >../NEWS
 [% END %]
@@ -7,6 +7,7 @@
 
   The line editor now has an input history
   Space now moves to the next difference (same as Enter)
+  win32/vbindiff.rc had been left out of the source archive
 
 *  7 Jun 2008     VBinDiff 3.0 beta 2
 
