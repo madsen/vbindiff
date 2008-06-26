@@ -1,4 +1,4 @@
-[% # $Id: ReadMe.tt 4738 2008-06-07 20:27:40Z cjm $ %]
+[% # $Id: ReadMe.tt 4753 2008-06-26 00:51:58Z cjm $ %]
 
 [% IF Win32 %]
    [% outputFile = 'ReadMe.txt' %]
@@ -60,9 +60,9 @@ $stash->set(section => sub {
 [% section('About Visual Binary Diff') %]
 
 Visual Binary Diff (VBinDiff) displays files in hexadecimal and ASCII
-(or EBCDIC).  It can also display two files at once, and highlight
-the differences between them.  Unlike B<diff>, it works well with
-large files (up to 4 GB).
+(or EBCDIC).  It can also display two files at once, and highlight the
+differences between them.  Unlike diff, it works well with large files
+(up to 4 GB).
 
 VBinDiff was inspired by the Compare Files function of the ProSel
 utilities by Glen Bredon, for the Apple II.  When I couldn't find a
