@@ -1,9 +1,0 @@
-$$Id: File_ID.DIZ 4585 2004-10-26 00:23:00Z cjm $
-Visual Binary Diff $%v%$ ($%d%$)
-========================================
-VBinDiff interactively displays two
-files in hex and ASCII with differences
-between the two hilighted.
-Requires EMX 0.9b runtime (emxrt.zip).
-Freeware (GPL).  Includes source code.
-Christopher J. Madsen  ac608@yfn.ysu.edu

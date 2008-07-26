@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: maketxt.pl 4646 2005-10-10 20:53:49Z cjm $
+# $Id: maketxt.pl 4759 2008-07-26 03:19:24Z cjm $
 # Copyright 2005 Christopher J. Madsen
 #
 # Generate FFV.txt from FFV.pod
@@ -16,8 +16,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #---------------------------------------------------------------------
 
 use strict;

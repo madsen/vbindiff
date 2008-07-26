@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: vbindiff.cpp 4752 2008-06-26 00:40:57Z cjm $
+// $Id: vbindiff.cpp 4759 2008-07-26 03:19:24Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -18,8 +18,7 @@
 //   GNU General Public License for more details.
 //
 //   You should have received a copy of the GNU General Public License
-//   along with this program; if not, write to the Free Software
-//   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+//   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //--------------------------------------------------------------------
 
 #include "config.h"
@@ -1742,8 +1741,7 @@ bool license(GetOpt*, const GetOpt::Option*, const char*,
 "GNU General Public License for more details.\n"
 "\n"
 "You should have received a copy of the GNU General Public License\n"
-"along with this program; if not, write to the Free Software\n"
-"Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA."
+"along with this program; if not, see <http://www.gnu.org/licenses/>."
   );
 
   exit(0);

@@ -1,14 +1,14 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-# $Id: configure.ac 4748 2008-06-10 04:45:52Z cjm $
+# $Id: configure.ac 4759 2008-07-26 03:19:24Z cjm $
 
 AC_PREREQ(2.59)
-AC_INIT([[Visual Binary Diff]], [[3.0_beta3]], [[vbindiff AT cjmweb.net]], [[vbindiff]])
+AC_INIT([[Visual Binary Diff]], [[3.0_beta4]], [[vbindiff AT cjmweb.net]], [[vbindiff]])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_SRCDIR([vbindiff.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_LANG([C++])
-AC_REVISION($Revision: 4748 $)
+AC_REVISION($Revision: 4759 $)
 
 # Checks for programs.
 AC_PROG_CXX
