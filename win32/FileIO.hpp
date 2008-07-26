@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------
-// $Id: FileIO.hpp 4759 2008-07-26 03:19:24Z cjm $
+// $Id: FileIO.hpp 4760 2008-07-26 04:26:36Z cjm $
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
@@ -66,7 +66,10 @@ inline void CloseFile(File file)
 //--------------------------------------------------------------------
 inline bool WriteFile(File file, const void* buffer, Size count)
 {
-  return WriteFile(file, buffer, count, NULL, NULL) != 0;
+  DWORD bytesWritten;
+
+  return (WriteFile(file, buffer, count, &bytesWritten, NULL) != 0
+          && bytesWritten == count);
 } // end WriteFile
 
 //--------------------------------------------------------------------
