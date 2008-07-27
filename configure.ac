@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-# $Id: configure.ac 4759 2008-07-26 03:19:24Z cjm $
+# $Id: configure.ac 4761 2008-07-27 00:55:16Z cjm $
 
 AC_PREREQ(2.59)
 AC_INIT([[Visual Binary Diff]], [[3.0_beta4]], [[vbindiff AT cjmweb.net]], [[vbindiff]])
@@ -8,7 +8,23 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_SRCDIR([vbindiff.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_LANG([C++])
-AC_REVISION($Revision: 4759 $)
+AC_REVISION($Revision: 4761 $)
+
+# Decide whether to enable debugging:
+CFLAGS="${CFLAGS=}"
+
+AC_MSG_CHECKING(whether to enable debugging)
+AC_ARG_ENABLE(debug,
+  [AS_HELP_STRING([--enable-debug], [turn on debugging (default is no)])],
+  , enable_debug=no)
+
+if test "x$enable_debug" = "xyes"; then
+  CFLAGS="-g -DDEBUG $CFLAGS"
+  AC_MSG_RESULT(yes)
+else
+  CFLAGS="-O2 $CFLAGS"
+  AC_MSG_RESULT(no)
+fi
 
 # Checks for programs.
 AC_PROG_CXX
