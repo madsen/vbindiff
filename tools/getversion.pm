@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------
-# $Id: getversion.pm 4759 2008-07-26 03:19:24Z cjm $
+# getversion.pm
 # Copyright 2005 Christopher J. Madsen
 #
 # Get version information from configure.ac

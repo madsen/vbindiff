@@ -1,14 +1,13 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-# $Id: configure.ac 4761 2008-07-27 00:55:16Z cjm $
 
-AC_PREREQ(2.59)
-AC_INIT([[Visual Binary Diff]], [[3.0_beta4]], [[vbindiff AT cjmweb.net]], [[vbindiff]])
+AC_PREREQ(2.64)
+AC_INIT([[Visual Binary Diff]], [[3.0_beta5]], [[vbindiff AT cjmweb.net]], [[vbindiff]], [[http://www.cjmweb.net/vbindiff/]])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_SRCDIR([vbindiff.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_LANG([C++])
-AC_REVISION($Revision: 4761 $)
+AC_REVISION([m4_esyscmd([./tools/configure.commit])])
 
 # Decide whether to enable debugging:
 CFLAGS="${CFLAGS=}"

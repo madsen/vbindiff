@@ -1,4 +1,3 @@
-[% # $Id: NEWS.tt 4761 2008-07-27 00:55:16Z cjm $ %]
 [% UNLESS Win32 %]
    >../NEWS
 [% END %]

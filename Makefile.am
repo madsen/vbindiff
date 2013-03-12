@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 #---------------------------------------------------------------------
-# $Id: Makefile.am 4759 2008-07-26 03:19:24Z cjm $
+# Makefile.am
 # Copyright 2008 Christopher J. Madsen
 #
 # Automake makefile for VBinDiff
@@ -30,6 +30,7 @@ EXTRA_DIST = \
 	tools/vbindiff.pod.tt	\
 	tools/NEWS.tt		\
 	tools/ReadMe.tt		\
+	tools/configure.commit	\
 	tools/genfile.pl	\
 	tools/getversion.pm	\
 	tools/maketxt.pl	\

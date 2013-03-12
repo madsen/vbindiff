@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Copy this to .git/hooks/post-commit
+
+# If configure.ac was just checked in, touch it,
+# so that configure will be regenerated and
+# AC_REVISION will reflect the new commit.
+#
+# For some reason, --quiet isn't actually quiet,
+# so redirect output to /dev/null
+
+git diff-tree --quiet HEAD -- configure.ac >/dev/null \
+ || touch -c configure.ac

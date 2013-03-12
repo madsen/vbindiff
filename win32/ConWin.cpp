@@ -1,11 +1,9 @@
 //--------------------------------------------------------------------
-// $Id: ConWin.cpp 4759 2008-07-26 03:19:24Z cjm $
-//--------------------------------------------------------------------
 //
 //   VBinDiff
 //   Copyright 1997-2008 by Christopher J. Madsen
 //
-//   Support class for console mode applications
+//   Support class for Win32 console mode applications
 //
 //   This program is free software; you can redistribute it and/or
 //   modify it under the terms of the GNU General Public License as

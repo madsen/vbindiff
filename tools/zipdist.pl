@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: zipdist.pl 4759 2008-07-26 03:19:24Z cjm $
+# zipdist.pl
 # Copyright 2005 Christopher J. Madsen
 #
 # Generate the Win32 distribution ZIP file

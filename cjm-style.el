@@ -1,4 +1,4 @@
-;; $Id: cjm-style.el 4615 2005-03-23 19:22:50Z cjm $
+;; cjm-style.el
 ;;
 ;; My coding style for Emacs' CC-Mode:
 

@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #---------------------------------------------------------------------
-# $Id: maketxt.pl 4759 2008-07-26 03:19:24Z cjm $
+# maketxt.pl
 # Copyright 2005 Christopher J. Madsen
 #
 # Generate FFV.txt from FFV.pod

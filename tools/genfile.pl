@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 #---------------------------------------------------------------------
-# $Id: genfile.pl 4759 2008-07-26 03:19:24Z cjm $
+# genfile.pl
 # Copyright 2005 Christopher J. Madsen
 #
 # Process files through Template Toolkit
