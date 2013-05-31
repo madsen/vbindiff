@@ -1548,9 +1548,9 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
-  positionInWin(cmd, inWidth+2, " Goto ");
+  positionInWin(cmd, inWidth+3, " Goto ");
 
-  const int  maxLen = inWidth-2;
+  const int  maxLen = inWidth-1;
   char  buf[maxLen+1];
 
   getString(buf, maxLen, positionHistory, hexDigits, true);
@@ -1558,7 +1558,7 @@ void gotoPosition(Command cmd)
   if (!buf[0])
     return;
 
-  FPos  pos = strtoul(buf, NULL, 16);
+  FPos  pos = _strtoui64(buf, NULL, 16);
 
   if (cmd & cmgGotoTop)
     file1.moveTo(pos);
