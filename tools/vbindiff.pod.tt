@@ -39,7 +39,7 @@ B<vbindiff> I<file1> [ I<file2> ]
 Visual Binary Diff (VBinDiff) displays files in hexadecimal and ASCII
 (or EBCDIC).  It can also display two files at once, and highlight
 the differences between them.  Unlike B<diff>, it works well with
-large files (up to 4 GB).
+large files (up to 64 GB).
 
 =head2 Viewing files
 

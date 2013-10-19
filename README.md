@@ -1,7 +1,7 @@
 VBinDiff - Visual Binary Diff
 =============================
 
-[Visual Binary Diff (VBinDiff)](http://www.cjmweb.net/vbindiff/) displays files in hexadecimal and ASCII (or EBCDIC).  It can also display two files at once, and highlight the differences between them.  Unlike diff, it works well with large files (up to 4 GB).
+[Visual Binary Diff (VBinDiff)](http://www.cjmweb.net/vbindiff/) displays files in hexadecimal and ASCII (or EBCDIC).  It can also display two files at once, and highlight the differences between them.  Unlike diff, it works well with large files (up to 64 GB).
 
 VBinDiff was inspired by the Compare Files function of the [ProSel utilities by Glen Bredon](http://www.apple2.org.za/gswv/USA2WUG/Glen.Bredon.In.Memoriam/A2.Software/), for the [Apple II](https://en.wikipedia.org/wiki/Apple_II).  When I couldn't find a similar utility for the PC, I wrote it myself.
 
