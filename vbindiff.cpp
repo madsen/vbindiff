@@ -114,8 +114,8 @@ const Command  cmUseBottom    = 11;
 const Command  cmToggleASCII  = 12;
 const Command  cmFind         = 16; // Commands 16-19
 
-const short  leftMar  = 11;     // Starting column of hex display
-const short  leftMar2 = 61;     // Starting column of ASCII display
+const short  leftMar  = 13;     // Starting column of hex display
+const short  leftMar2 = 63;     // Starting column of ASCII display
 
 const int  lineWidth = 16;      // Number of bytes displayed per line
 
@@ -460,7 +460,7 @@ void FileDisplay::display()
   FPos  lineOffset = offset;
 
   short i,j,index,lineLength;
-  char  buf[lineWidth + lineWidth/8 + 1];
+  char  buf[lineWidth + lineWidth/8];
   buf[sizeof(buf)-1] = '\0';
 
   char  buf2[screenWidth+1];
@@ -472,7 +472,7 @@ void FileDisplay::display()
 //    cerr << i << '\n';
     char*  str = buf2;
     str +=
-      sprintf(str, "%04X %04X:",Word(lineOffset>>16),Word(lineOffset&0xFFFF));
+      sprintf(str, "%01X %04X %04X:",Word(lineOffset>>32),Word(lineOffset>>16),Word(lineOffset&0xFFFF));
 
     lineLength  = min(lineWidth, bufContents - i*lineWidth);
 
@@ -1548,9 +1548,9 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
-  positionInWin(cmd, inWidth+2, " Goto ");
+  positionInWin(cmd, inWidth+3, " Goto ");
 
-  const int  maxLen = inWidth-2;
+  const int  maxLen = inWidth-1;
   char  buf[maxLen+1];
 
   getString(buf, maxLen, positionHistory, hexDigits, true);
@@ -1558,7 +1558,7 @@ void gotoPosition(Command cmd)
   if (!buf[0])
     return;
 
-  FPos  pos = strtoul(buf, NULL, 16);
+  FPos  pos = _strtoui64(buf, NULL, 16);
 
   if (cmd & cmgGotoTop)
     file1.moveTo(pos);
