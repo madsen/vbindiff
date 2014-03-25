@@ -485,7 +485,10 @@ void FileDisplay::display()
 
       buf[index++] = displayTable[data->line[i][j]];
     }
-    memset(buf + index, ' ', sizeof(buf) - index - 1);
+
+    if (index < 0) memset(buf, ' ', sizeof(buf));
+    else memset(buf + index, ' ', sizeof(buf) - index - 1);
+
     memset(str, ' ', screenWidth - (str - buf2));
 
     win.put(0,i+1, buf2);
