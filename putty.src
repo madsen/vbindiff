@@ -2,7 +2,7 @@
 # one in ncurses 5.4 (correcting the Home & End keys)
 
 # PuTTY 0.57 (released 20 February 2005)
-# http://www.chiark.greenend.org.uk/~sgtatham/putty/
+# https://www.chiark.greenend.org.uk/~sgtatham/putty/
 #
 # This emulates vt100 + vt52 (plus a few vt220 features:  ech, SRM, DECTCEM, as
 # well as SCO and Atari, color palettes from Linux console).  Reading the code,

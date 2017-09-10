@@ -1,7 +1,7 @@
 Unfortunately, I've run into problems using the Unix version of
 VBinDiff with the popular PuTTY terminal emulator:
 
-  http://www.chiark.greenend.org.uk/~sgtatham/putty/
+  https://www.chiark.greenend.org.uk/~sgtatham/putty/
 
 The first problem is that, by default, PuTTY identifies itself as an
 "xterm".  But its xterm emulation is not completely accurate, and it

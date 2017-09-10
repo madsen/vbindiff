@@ -126,7 +126,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, see <http://www.gnu.org/licenses/>.
+along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 The GNU General Public License can be found in the file COPYING[% '.txt' IF Win32 %].
 
@@ -143,8 +143,9 @@ under the same terms as ncurses.
 [% section('Author') %]
 
 Christopher J. Madsen           vbindiff AT cjmweb.net
-1113 Abrams Rd. Apt. 296
-Richardson, TX  75081-5573
 
 VBinDiff Home Page:
-http://www.cjmweb.net/vbindiff/
+https://www.cjmweb.net/vbindiff/
+
+VBinDiff Development on GitHub:
+https://github.com/madsen/vbindiff

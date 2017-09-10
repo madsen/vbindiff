@@ -151,10 +151,11 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with VBinDiff (see the file COPYING[% '.txt' IF Win32 %]); if
-not, see L<http://www.gnu.org/licenses/>.
+not, see L<https://www.gnu.org/licenses/>.
 
 
 =head1 AUTHOR
 
 Christopher J. Madsen <vbindiff .at. cjmweb.net>
-L<http://www.cjmweb.net/vbindiff/>
+L<https://www.cjmweb.net/vbindiff/>
+L<https://github.com/madsen/vbindiff>
