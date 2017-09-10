@@ -30,9 +30,11 @@ AC_PROG_CXX
 AC_PROG_CC
 
 # Checks for libraries.
-AC_CHECK_LIB([ncurses], [initscr], ,
+AC_SEARCH_LIBS([initscr], [ncurses], ,
              [AC_MSG_ERROR([The ncurses library is required])])
-AC_CHECK_LIB([panel], [new_panel], ,
+AC_SEARCH_LIBS([cbreak], [ncurses tinfo], ,
+             [AC_MSG_ERROR([The ncurses/tinfo library is required])])
+AC_SEARCH_LIBS([new_panel], [panel], ,
              [AC_MSG_ERROR([The panel library is required])])
 
 # Checks for header files.
