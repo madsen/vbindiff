@@ -2,6 +2,7 @@
 *.ncb
 *.o
 *.obj
+*.opendb
 *.opensdf
 *.pdb
 *.plg

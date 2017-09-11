@@ -62,6 +62,7 @@ my $tt = Template->new({
 foreach my $file (@ARGV) {
   my $output;
   $tt->process($file, \%data, \$output) or die $tt->error;
+  $output =~ s/\r\n/\n/g;
 
 ##  print $output;
   # Get the output directive from the first non-blank line,
