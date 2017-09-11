@@ -1,4 +1,4 @@
-#! /usr/bin/perl -w
+#! /usr/bin/env perl
 #---------------------------------------------------------------------
 # genfile.pl
 # Copyright 2005 Christopher J. Madsen
@@ -20,6 +20,7 @@
 #--------------------------------------------------------------------
 
 use strict;
+use warnings;
 use File::Spec::Functions 'rel2abs';
 use FindBin '$Bin';
 use Getopt::Long;

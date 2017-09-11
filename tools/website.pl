@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#! /usr/bin/env perl
 #---------------------------------------------------------------------
 # website.pl
 # Copyright 2005 Christopher J. Madsen
