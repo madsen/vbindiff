@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include <algorithm>
 #include <iostream>
@@ -1816,6 +1817,13 @@ void processOptions(int& argc, char**& argv)
   }
 } // end processOptions
 
+static int ctrlc_pressed;
+
+static void sighandler(int signo) {
+	(void) signo;
+	ctrlc_pressed = 1;
+}
+
 //====================================================================
 // Main Program:
 //====================================================================
@@ -1863,8 +1871,10 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
   file1.display();
   file2.display();
 
+  signal(SIGINT, sighandler);
+
   Command  cmd;
-  while ((cmd = getCommand()) != cmQuit)
+  while (!ctrlc_pressed && (cmd = getCommand()) != cmQuit)
     handleCmd(cmd);
 
   file1.shutDown();
