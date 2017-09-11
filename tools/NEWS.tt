@@ -2,6 +2,15 @@
    >../NEWS
 [% END %]
 
+* 10 Sep 2017     VBinDiff 3.0 beta 5
+
+  VBinDiff development now uses Git, and the source is available on GitHub
+   https://github.com/madsen/vbindiff
+  The Windows version is now built with Visual Studio 2015
+  Merged GitHub #3: Fix crash when comparing files (by nfllab)
+  Merged GitHub #6: Build on systems with split ncurses/tinfo libraries
+   (by laomaiweng)
+
 * 26 Jul 2008     VBinDiff 3.0 beta 4
 
   Fixed a major bug in the Win32 hex editor

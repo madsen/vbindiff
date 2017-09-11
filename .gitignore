@@ -14,6 +14,8 @@
 .deps
 Makefile
 Makefile.in
+NEWS
+README
 ReadMe.txt
 VBinDiff.txt
 aclocal.m4
