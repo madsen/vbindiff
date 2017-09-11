@@ -78,7 +78,7 @@ $conf =~ s/[ \t]+\\\n[ \t]*/ /g; # Merge up continued lines
 
 # Parse out the source files:
 
-my @files = qw(Makefile.am aclocal.m4 config.h.in configure.ac);
+my @files = qw(Makefile.am config.h.in configure.ac);
 while ($conf =~ /^\w+_(?:SOURCES|DIST) +=(.+)/mg) {
   push @files, split(' ', $1);
 }
@@ -93,7 +93,7 @@ push @unlink, 'Source.zip';
 system qw(perl tools/genfile.pl -D Win32 tools/vbindiff.pod.tt tools/ReadMe.tt);
 
 getFrom('AUTHORS', 'AUTHORS.txt');
-getFrom('\emacs\21.3\etc\COPYING', 'COPYING.txt');
+getFrom('\emacs\24.3\etc\COPYING', 'COPYING.txt');
 
 # Create ZIP file:
 

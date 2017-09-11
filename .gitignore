@@ -8,10 +8,14 @@
 *.plg
 *.sdf
 *.suo
+*.tar.gz
 *.user
+*.zip
 .deps
 Makefile
 Makefile.in
+ReadMe.txt
+VBinDiff.txt
 aclocal.m4
 autom4te.cache
 config.h

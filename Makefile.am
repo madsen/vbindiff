@@ -41,8 +41,10 @@ EXTRA_DIST = \
 	win32/FileIO.hpp	\
 	win32/StdAfx.cpp	\
 	win32/config.h		\
-	win32/vbindiff.dsp	\
-	win32/vbindiff.dsw	\
+	win32/targetver.h	\
+	win32/VBinDiff.sln	\
+	win32/VBinDiff.vcxproj	\
+	win32/VBinDiff.vcxproj.filters \
 	win32/vbindiff.rc	\
 	win32/version.h
 
