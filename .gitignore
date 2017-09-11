@@ -2,8 +2,12 @@
 *.ncb
 *.o
 *.obj
+*.opensdf
 *.pdb
 *.plg
+*.sdf
+*.suo
+*.user
 .deps
 Makefile
 Makefile.in
@@ -21,4 +25,5 @@ vbindiff
 vbindiff.1
 win32/Debug
 win32/Release
+win32/ipch/
 win32/version.h
