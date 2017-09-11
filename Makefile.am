@@ -1,7 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 #---------------------------------------------------------------------
 # Makefile.am
-# Copyright 2008 Christopher J. Madsen
+# Copyright 2017 Christopher J. Madsen
 #
 # Automake makefile for VBinDiff
 #

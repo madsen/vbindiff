@@ -1,7 +1,7 @@
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 1995-2008 by Christopher J. Madsen
+//   Copyright 1995-2017 by Christopher J. Madsen
 //
 //   Visual display of differences in binary files
 //
@@ -40,7 +40,7 @@ using namespace std;
 #include "FileIO.hpp"
 
 const char titleString[] =
-  "\nVBinDiff " PACKAGE_VERSION "\nCopyright 1995-2008 Christopher J. Madsen";
+  "\nVBinDiff " PACKAGE_VERSION "\nCopyright 1995-2017 Christopher J. Madsen";
 
 void exitMsg(int status, const char* message);
 void usage(bool showHelp=true, int exitStatus=0);
@@ -1833,7 +1833,7 @@ int main(int argc, char* argv[])
     usage(1);
 
   cout << "\
-VBinDiff " PACKAGE_VERSION ", Copyright 1995-2008 Christopher J. Madsen\n\
+VBinDiff " PACKAGE_VERSION ", Copyright 1995-2017 Christopher J. Madsen\n\
 VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
 
   singleFile = (argc == 2);

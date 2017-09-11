@@ -24,7 +24,7 @@ print $line
 
 [% END %]
 ===============================================================================
-                                      Copyright 2000-2008 Christopher J. Madsen
+                                      Copyright 2000-2017 Christopher J. Madsen
 CONTENTS
 ========
 [% PERL %]

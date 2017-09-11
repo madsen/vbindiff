@@ -1,7 +1,7 @@
 //--------------------------------------------------------------------
 //
 //   Visual Binary Diff
-//   Copyright 1995-2008 by Christopher J. Madsen
+//   Copyright 1995-2017 by Christopher J. Madsen
 //
 //   Source file that includes just the standard includes
 //	vbindiff.pch will be the pre-compiled header

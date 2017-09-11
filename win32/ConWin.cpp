@@ -1,7 +1,7 @@
 //--------------------------------------------------------------------
 //
 //   VBinDiff
-//   Copyright 1997-2008 by Christopher J. Madsen
+//   Copyright 1997-2017 by Christopher J. Madsen
 //
 //   Support class for Win32 console mode applications
 //

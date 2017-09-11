@@ -25,7 +25,7 @@ print $line
 
 [% END %]
  ===============================================================================
-                                      Copyright 1995-2008 Christopher J. Madsen
+                                      Copyright 1995-2017 Christopher J. Madsen
 [% ELSE %]
 vbindiff - hexadecimal file display and comparison
 [% END %]
