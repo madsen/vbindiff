@@ -2,6 +2,11 @@
    >../NEWS
 [% END %]
 
+* UNRELEASED      VBinDiff 3.0 beta 6
+
+  Use the Windows XP-compatible v140_xp PlatformToolset with MSVC 2015
+   (thanks Paul Bolotoff)
+
 * 10 Sep 2017     VBinDiff 3.0 beta 5
 
   VBinDiff development now uses Git, and the source is available on GitHub

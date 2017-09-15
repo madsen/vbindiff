@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.64)
-AC_INIT([[Visual Binary Diff]], [[3.0_beta5]], [[vbindiff AT cjmweb.net]], [[vbindiff]], [[https://www.cjmweb.net/vbindiff/]])
+AC_INIT([[Visual Binary Diff]], [[3.0_beta6]], [[vbindiff AT cjmweb.net]], [[vbindiff]], [[https://www.cjmweb.net/vbindiff/]])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_SRCDIR([vbindiff.cpp])
 AC_CONFIG_HEADER([config.h])
