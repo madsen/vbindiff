@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.7)
 project(vbindiff)
 
 SET(PACKAGE_VERSION 3.0_beta6)
-SET(PACKAGE_VERSION_NUM "3,0,200,6")
+SET(WINDOWS_PACKAGE_VERSION "3,0,200,6")
 
 set(CMAKE_CXX_STANDARD 14)
 
