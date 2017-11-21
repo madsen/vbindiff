@@ -53,7 +53,7 @@ else()
             curses/FileIO.hpp)
     include_directories(BEFORE curses)
 
-    set(PROJECT_FLAGS "-Wall -D_FILE_OFFSET_BITS=64")
+    set(PROJECT_FLAGS "-Wall -Wno-narrowing -D_FILE_OFFSET_BITS=64")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
 endif()
