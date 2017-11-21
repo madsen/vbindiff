@@ -71,8 +71,9 @@ foreach my $file (@ARGV) {
   $output =~ s/^\s*([>|].+)\n.*\n// or die;
   # The user can override this with the --output option:
   my $outfile = ($redirect || $1);
+  $outfile =~ s/^>//;
 
-  open(OUT, $outfile) or die;
+  open(OUT, '>', $outfile) or die;
   print OUT $output   or die;
   close OUT           or die;
 } # end foreach $file

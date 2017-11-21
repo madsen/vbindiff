@@ -37,7 +37,7 @@ if (WIN32)
                 "<CMAKE_RC_COMPILER> -O coff -I${PROJECT_BINARY_DIR} -I${PROJECT_SOURCE_DIR}/win32/mingw <FLAGS> <DEFINES> <SOURCE> <OBJECT>")
     endif ()
     set (SOURCE_FILES ${SOURCE_FILES} "${PROJECT_SOURCE_DIR}/win32/vbindiff.rc")
-else()
+else ()
     find_package(Curses REQUIRED)
     include_directories(${CURSES_INCLUDE_DIR})
     find_library(CURSES_PANEL_LIBRARY NAMES panel DOC "The curses panel library")
@@ -56,8 +56,29 @@ else()
     set(PROJECT_FLAGS "-Wall -Wno-narrowing -D_FILE_OFFSET_BITS=64")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
-endif()
+endif ()
 
 add_executable(vbindiff ${SOURCE_FILES})
 
 target_link_libraries(vbindiff ${CURSES_LIBRARIES})
+
+if (NOT WIN32)
+    include(GNUInstallDirs)
+    install(TARGETS vbindiff RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+    add_custom_command(
+            OUTPUT ${PROJECT_BINARY_DIR}/vbindiff.1
+            COMMAND ${PROJECT_SOURCE_DIR}/tools/genfile.pl
+            ARGS ${PROJECT_SOURCE_DIR}/tools/vbindiff.pod.tt --output=${PROJECT_BINARY_DIR}/vbindiff.1
+            DEPENDS tools/vbindiff.pod.tt
+    )
+    add_custom_target(man ALL SOURCES ${PROJECT_BINARY_DIR}/vbindiff.1)
+
+    if (CMAKE_INSTALL_MANDIR)
+        set(INSTALL_MANDIR ${CMAKE_INSTALL_MANDIR})
+    else()
+        # CMake does not seem to define CMAKE_INSTALL_MANDIR on some platforms
+        set(INSTALL_MANDIR share/man)
+    endif()
+    install(FILES vbindiff.1 DESTINATION ${INSTALL_MANDIR}/man1)
+endif ()
