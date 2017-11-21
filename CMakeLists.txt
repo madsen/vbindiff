@@ -52,6 +52,10 @@ else()
             curses/ConWin.hpp
             curses/FileIO.hpp)
     include_directories(BEFORE curses)
+
+    set(PROJECT_FLAGS "-Wall -D_FILE_OFFSET_BITS=64")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
 endif()
 
 add_executable(vbindiff ${SOURCE_FILES})
