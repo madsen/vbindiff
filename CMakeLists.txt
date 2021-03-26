@@ -58,9 +58,16 @@ else ()
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${PROJECT_FLAGS}")
 endif ()
 
+set(LINK_LIBS ${CURSES_LIBRARIES})
+
+if (MINGW)
+    find_library(libssp NAMES libssp.a)
+    set(LINK_LIBS ${LINK_LIBS} ${libssp})
+endif()
+
 add_executable(vbindiff ${SOURCE_FILES})
 
-target_link_libraries(vbindiff ${CURSES_LIBRARIES})
+target_link_libraries(vbindiff ${LINK_LIBS})
 
 if (NOT WIN32)
     include(GNUInstallDirs)
