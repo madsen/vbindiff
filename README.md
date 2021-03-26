@@ -15,9 +15,30 @@ This repository uses a submodule to pull in my [Free GetOpt](https://github.com/
 
 1. Clone this repository and `cd` into it.
 2. Run `git submodule update --init`
-3. If you're working on a Unix system, run `autoreconf -i`
+3. There are two ways to build VBinDiff: using [Autotools](https://www.gnu.org/software/automake/manual/html_node/Autotools-Introduction.html) or using [CMake](https://cmake.org/)
+  * Autotools:
+    * If you're working on a Unix system, run `autoreconf -i`
+    * Now you're ready to use the normal `./configure && make` process on Unix, or open `win32/vbindiff.dsw` on Windows.
+  * CMake:
+    * Example usage on Unix-like systems (including Windows with MinGW):
+      ```
+      mkdir build
+      cd build
+      cmake ..
+      make
+      ```
+      Try also `ccmake ..` or `cmake-gui ..` in place of `cmake ..` above.
+    * Windows / Visual Studio: See [CMake support in Visual Studio](https://blogs.msdn.microsoft.com/vcblog/2016/10/05/cmake-support-in-visual-studio/) or use the same approach as on Unix-like systems and then open the generated project file:
+      ```
+      mkdir build
+      cd build
+      cmake -G "Visual Studio 15 2017 Win64" ..
+      ```
+      Now open the generated project file in Visual Studio.
+      See [cmake-generators(7)](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#visual-studio-generators) for the list of available generators / supported Visual Studio versions.
 
-Now you're ready to use the normal `./configure && make` process on Unix, or open `win32/vbindiff.dsw` on Windows.
+
+
 
 To build the documentation, you'll also need [Perl](https://www.perl.org/), [Date::Format](https://metacpan.org/module/Date::Format), and [Template-Toolkit](https://metacpan.org/release/Template-Toolkit).  For Windows, I recommend [Strawberry Perl](http://strawberryperl.com/), which comes with the necessary modules.  On Unix, your distro may have packages, or you can install from [CPAN](https://metacpan.org/).  Package names for some distros are:
 
