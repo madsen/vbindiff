@@ -28,8 +28,9 @@ void exitMsg(int status, const char* message); // From vbindiff.cpp
 enum ColorPair {
   pairWhiteBlue= 1,
   pairWhiteBlack,
-  pairRedBlue,
-  pairYellowBlue
+  pairRedWhite,
+  pairYellowBlue,
+  pairGreenBlue
 };
 
 static const ColorPair colorStyle[] = {
@@ -40,8 +41,9 @@ static const ColorPair colorStyle[] = {
   pairWhiteBlack,  // cCurrentMode
   pairWhiteBlack,  // cFileName
   pairWhiteBlue,   // cFileWin
-  pairRedBlue,     // cFileDiff
-  pairYellowBlue   // cFileEdit
+  pairGreenBlue,   // cFileDiff
+  pairYellowBlue,  // cFileEdit
+  pairRedWhite     // cFileSearch
 };
 
 static const attr_t attribStyle[] = {
@@ -53,7 +55,8 @@ static const attr_t attribStyle[] = {
   A_REVERSE | COLOR_PAIR(colorStyle[ cFileName   ]),
               COLOR_PAIR(colorStyle[ cFileWin    ]),
   A_BOLD    | COLOR_PAIR(colorStyle[ cFileDiff   ]),
-  A_BOLD    | COLOR_PAIR(colorStyle[ cFileEdit   ])
+  A_BOLD    | COLOR_PAIR(colorStyle[ cFileEdit   ]),
+              COLOR_PAIR(colorStyle[ cFileSearch ])
 };
 
 //====================================================================
@@ -85,8 +88,9 @@ bool ConWindow::startup()
 
     init_pair(pairWhiteBlue,  COLOR_WHITE,  COLOR_BLUE);
     init_pair(pairWhiteBlack, COLOR_WHITE,  COLOR_BLACK);
-    init_pair(pairRedBlue,    COLOR_RED,    COLOR_BLUE);
+    init_pair(pairRedWhite,   COLOR_RED,    COLOR_WHITE);
     init_pair(pairYellowBlue, COLOR_YELLOW, COLOR_BLUE);
+    init_pair(pairGreenBlue,  COLOR_GREEN,  COLOR_BLUE);
   } // end if terminal has color
 
   return true;

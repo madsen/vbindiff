@@ -162,6 +162,7 @@ class FileDisplay
   ConWindow          win;
   bool               writable;
   int                yPos;
+  int                search;
  public:
   FileDisplay();
   ~FileDisplay();
@@ -381,6 +382,8 @@ void Difference::resize()
 //     The handle of the window used for display
 //   yPos:
 //     The vertical position of the display window
+//   search:
+//     The number of bytes to highlight
 //   buffer/line:
 //     The currently displayed portion of the file
 //
@@ -393,7 +396,8 @@ FileDisplay::FileDisplay()
   diffs(NULL),
   offset(0),
   writable(false),
-  yPos(0)
+  yPos(0),
+  search(0)
 {
   fileName[0] = '\0';
 } // end FileDisplay::FileDisplay
@@ -502,6 +506,12 @@ void FileDisplay::display()
           win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileDiff,2);
           win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileDiff,1);
         }
+
+    if (search)
+      for (j = 0; j < lineWidth && search; j++, search--) {
+        win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileSearch,2);
+        win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileSearch,1);
+      }
     lineOffset += lineWidth;
   } // end for i up to numLines
 
@@ -740,6 +750,7 @@ bool FileDisplay::moveTo(const Byte* searchFor, int searchLen)
         if (! memcmp(searchFor, searchBuf + l + i, searchLen)) {
           delete [] searchBuf;
           moveTo(newPos + i - searchLen + l);
+          search = searchLen;
           return true;
         }
       }
@@ -794,6 +805,7 @@ bool FileDisplay::moveToBack(const Byte* searchFor, int searchLen)
         if (! memcmp(searchFor, searchBuf + i, searchLen)) {
           delete [] searchBuf;
           moveTo(newPos + i);
+          search = searchLen;
           return true;
         }
       }
