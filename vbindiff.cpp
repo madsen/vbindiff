@@ -914,8 +914,8 @@ void displayCharacterSet()
 {
   const bool isASCII = (displayTable == asciiDisplayTable);
 
-  promptWin.putAttribs(3,2, (isASCII ? cCurrentMode : cBackground), 5);
-  promptWin.putAttribs(9,2, (isASCII ? cBackground : cCurrentMode), 6);
+  promptWin.putAttribs(4,2, (isASCII ? cCurrentMode : cBackground), 5);
+  promptWin.putAttribs(10,2, (isASCII ? cBackground : cCurrentMode), 6);
 
   promptWin.update();
 } // end displayCharacterSet
@@ -926,10 +926,10 @@ void displayLockState()
 #ifndef WIN32_CONSOLE     // The Win32 version uses Ctrl & Alt instead
   if (singleFile) return;
 
-  promptWin.putAttribs(63,1,
+  promptWin.putAttribs(67,1,
                        ((lockState == lockBottom) ? cCurrentMode : cBackground),
                        8);
-  promptWin.putAttribs(63,2,
+  promptWin.putAttribs(67,2,
                        ((lockState == lockTop)    ? cCurrentMode : cBackground),
                        11);
 #endif
@@ -1340,18 +1340,14 @@ void showPrompt()
   promptWin.border();
 
 #ifdef WIN32_CONSOLE
-  promptWin.put(1,1, "Arrow keys move  F find      "
-                "RET next difference  ESC quit  ALT  freeze top");
-  promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
-                "G goto position      Q quit  CTRL freeze bottom");
+  promptWin.put(1,1, "Arrow keys move  F find  N next  RET next difference  ESC quit  ALT  top");
+  promptWin.put(1,2, "C  ASCII/EBCDIC  E edit  P prev  G   goto position    Q   quit  CTRL bottom");
   const short
     topBotLength = 4,
-    topLength    = 15;
+    topLength    = 8;
 #else // curses
-  promptWin.put(1,1, "Arrow keys move  F find      "
-                "RET next difference  ESC quit  T move top");
-  promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
-                "G goto position      Q quit  B move bottom");
+  promptWin.put(1,1, "Arrow keys move  F find  N next  RET next difference  ESC quit  T move top");
+  promptWin.put(1,2, "C  ASCII/EBCDIC  E edit  P prev  G   goto position    Q   quit  B move bottom");
   const short
     topBotLength = 1,
     topLength    = 10;
@@ -1359,19 +1355,21 @@ void showPrompt()
 
   promptWin.putAttribs( 1,1, cPromptKey, 10);
   promptWin.putAttribs(18,1, cPromptKey, 1);
-  promptWin.putAttribs(30,1, cPromptKey, 3);
-  promptWin.putAttribs(51,1, cPromptKey, 3);
+  promptWin.putAttribs(26,1, cPromptKey, 1);
+  promptWin.putAttribs(34,1, cPromptKey, 3);
+  promptWin.putAttribs(55,1, cPromptKey, 3);
   promptWin.putAttribs( 1,2, cPromptKey, 1);
   promptWin.putAttribs(18,2, cPromptKey, 1);
-  promptWin.putAttribs(32,2, cPromptKey, 1);
-  promptWin.putAttribs(53,2, cPromptKey, 1);
+  promptWin.putAttribs(26,2, cPromptKey, 1);
+  promptWin.putAttribs(34,2, cPromptKey, 1);
+  promptWin.putAttribs(55,2, cPromptKey, 1);
   if (singleFile) {
     // Erase "move top" & "move bottom":
-    promptWin.putChar(61,1, ' ', topLength);
-    promptWin.putChar(61,2, ' ', topLength + 3);
+    promptWin.putChar(65,1, ' ', topLength);
+    promptWin.putChar(65,2, ' ', topLength + 3);
   } else {
-    promptWin.putAttribs(61,1, cPromptKey, topBotLength);
-    promptWin.putAttribs(61,2, cPromptKey, topBotLength);
+    promptWin.putAttribs(65,1, cPromptKey, topBotLength);
+    promptWin.putAttribs(65,2, cPromptKey, topBotLength);
   }
   displayLockState();
   displayCharacterSet();        // Calls promptWin.update()
