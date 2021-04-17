@@ -1442,7 +1442,6 @@ Command getCommand()
 
     switch (safeUC(e.uChar.AsciiChar)) {
      case KEY_RETURN:           // Enter
-     case ' ':                  // Space
       cmd = cmNextDiff;
       break;
 
@@ -1502,10 +1501,12 @@ Command getCommand()
       switch (e.wVirtualKeyCode) {
        case VK_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
        case VK_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
+       case ' ':
        case VK_NEXT:   cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
        case VK_END:    cmd = cmmMove|cmmMoveAll|cmmMoveForward;   break;
        case VK_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
        case VK_UP:     cmd = cmmMove|cmmMoveLine;                 break;
+       case VK_BACK:
        case VK_PRIOR:  cmd = cmmMove|cmmMovePage;                 break;
        case VK_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
       } // end switch virtual key code
@@ -1533,7 +1534,6 @@ Command getCommand()
 
     switch (safeUC(e)) {
      case KEY_RETURN:           // Enter
-     case ' ':                  // Space
       cmd = cmNextDiff;
       break;
 
@@ -1573,10 +1573,12 @@ Command getCommand()
 
      case KEY_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
      case KEY_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
+     case ' ':
      case KEY_NPAGE:  cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
      case KEY_END:    cmd = cmmMove|cmmMoveAll|cmmMoveForward;   break;
      case KEY_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
      case KEY_UP:     cmd = cmmMove|cmmMoveLine;                 break;
+     case KEY_BACKSPACE:
      case KEY_PPAGE:  cmd = cmmMove|cmmMovePage;                 break;
      case KEY_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
     } // end switch ASCII code
