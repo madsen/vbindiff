@@ -104,6 +104,10 @@ const Command  cmgGotoBottom  = 0x02;
 const Command  cmgGotoBoth    = cmgGotoTop|cmgGotoBottom;
 const Command  cmgGotoMask    = ~cmgGotoBoth;
 
+const Command  cmfFind        = 0x40; // Commands 64-67
+const Command  cmfFindNext    = 0x10;
+const Command  cmfFindPrev    = 0x20;
+
 const Command  cmNothing      = 0;
 const Command  cmNextDiff     = 1;
 const Command  cmQuit         = 2;
@@ -112,7 +116,6 @@ const Command  cmEditBottom   = 9;
 const Command  cmUseTop       = 10;
 const Command  cmUseBottom    = 11;
 const Command  cmToggleASCII  = 12;
-const Command  cmFind         = 16; // Commands 16-19
 
 const short  leftMar  = 11;     // Starting column of hex display
 const short  leftMar2 = 61;     // Starting column of ASCII display
@@ -172,6 +175,7 @@ class FileDisplay
   void         move(int step)    { moveTo(offset + step); };
   void         moveTo(FPos newOffset);
   bool         moveTo(const Byte* searchFor, int searchLen);
+  bool         moveToBack(const Byte* searchFor, int searchLen);
   void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
  protected:
@@ -747,6 +751,61 @@ bool FileDisplay::moveTo(const Byte* searchFor, int searchLen)
   delete [] searchBuf;
   return false;
 } // end FileDisplay::moveTo
+
+//--------------------------------------------------------------------
+// Change the file position by searching backward:
+//
+// Changes the file offset and updates the buffer.
+// Does not update the display.
+//
+// Input:
+//   searchFor:  The bytes to search for
+//   searchLen:  The number of bytes in searchFor
+//
+// Returns:
+//   true:   The search was successful
+//   false:  Search unsuccessful, file not moved
+
+bool FileDisplay::moveToBack(const Byte* searchFor, int searchLen)
+{
+  if (! fileName[0] || offset == 0)
+    return true;
+
+  const int blockSize = 8 * 1024 * 1024;
+  Byte *const searchBuf = new Byte[blockSize + searchLen];
+  memcpy(searchBuf + blockSize, data->buffer, searchLen);
+
+  FPos newPos = offset - blockSize;
+  int diff = 0;
+
+  for (;;) {
+    if (newPos < 0) {
+      diff = newPos;
+      newPos = 0;
+    }
+    SeekFile(file, newPos);
+    if ((ReadFile(file, searchBuf, blockSize)) <= 0) break;
+
+    if (diff)
+      memmove(searchBuf + (blockSize + diff), searchBuf + blockSize, searchLen);
+
+    for (int i = blockSize - 1 + diff; i >= 0; --i) {
+      if (*searchFor == searchBuf[i]) {
+        if (! memcmp(searchFor, searchBuf + i, searchLen)) {
+          delete [] searchBuf;
+          moveTo(newPos + i);
+          return true;
+        }
+      }
+    }
+    if (! newPos) break;
+
+    memcpy(searchBuf + blockSize, searchBuf, searchLen);
+    newPos -= blockSize;
+  }
+  delete [] searchBuf;
+  return false;
+} // end FileDisplay::moveToBack
 
 //--------------------------------------------------------------------
 // Move to the end of the file:
@@ -1387,13 +1446,27 @@ Command getCommand()
 
      case 'F':
       if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
-        cmd = cmFind|cmgGotoBottom;
+        cmd = cmfFind|cmgGotoBottom;
       else
-        cmd = cmFind|cmgGotoBoth;
+        cmd = cmfFind|cmgGotoBoth;
+      break;
+
+     case 'N':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmfFind|cmgGotoBottom|cmfFindNext;
+      else
+        cmd = cmfFind|cmgGotoBoth|cmfFindNext;
+      break;
+
+     case 'P':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmfFind|cmgGotoBottom|cmfFindPrev;
+      else
+        cmd = cmfFind|cmgGotoBoth|cmfFindPrev;
       break;
 
      case 0x06:               // Ctrl+F
-      cmd = cmFind|cmgGotoTop;
+      cmd = cmfFind|cmgGotoTop;
       break;
 
      case 'G':
@@ -1462,9 +1535,13 @@ Command getCommand()
       break;
 
      case 'F':
-      cmd = cmFind;
-      if (lockState != lockTop)    cmd |= cmgGotoTop;
-      if (lockState != lockBottom) cmd |= cmgGotoBottom;
+      cmd = cmfFind;
+      break;
+     case 'N':
+      cmd = cmfFind | cmfFindNext;
+      break;
+     case 'P':
+      cmd = cmfFind | cmfFindPrev;
       break;
 
      case 'G':
@@ -1494,6 +1571,11 @@ Command getCommand()
      case KEY_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
     } // end switch ASCII code
   } // end while no command
+
+  if (cmd & cmfFind) {
+    if (lockState != lockTop)    cmd |= cmgGotoTop;
+    if (lockState != lockBottom) cmd |= cmgGotoBottom;
+  } // end if find command
 
   if (cmd & cmmMove) {
     if (lockState != lockTop)    cmd |= cmmMoveTop;
@@ -1533,65 +1615,76 @@ void gotoPosition(Command cmd)
 void searchFiles(Command cmd)
 {
   const bool havePrev = !lastSearch.empty();
+  int key = 0;
 
-  positionInWin(cmd, (havePrev ? 47 : 32), " Find ");
+  if (! ((cmd & cmfFindNext || cmd & cmfFindPrev) && havePrev)) {
+    positionInWin(cmd, (havePrev ? 36 : 18), " Find ");
 
-  inWin.put(2, 1,"H Hex search   T Text search");
-  inWin.putAttribs( 2,1, cPromptKey, 1);
-  inWin.putAttribs(17,1, cPromptKey, 1);
-  if (havePrev) {
-    inWin.put(33, 1,"N Next match");
-    inWin.putAttribs(33,1, cPromptKey, 1);
-  }
-  inWin.update();
-  int key = safeUC(inWin.readKey());
+    inWin.put(2, 1, "H Hex");
+    inWin.put(10, 1, "T Text");
+    inWin.putAttribs(2, 1, cPromptKey, 1);
+    inWin.putAttribs(10, 1, cPromptKey, 1);
 
-  bool hex = false;
+    if (havePrev) {
+      inWin.put(19, 1, "N Next");
+      inWin.put(28, 1, "P Prev");
+      inWin.putAttribs(19, 1, cPromptKey, 1);
+      inWin.putAttribs(28, 1, cPromptKey, 1);
+    }
+    inWin.update();
+    key = safeUC(inWin.readKey());
 
-  if (key == KEY_ESCAPE) {
-    inWin.hide();
-    return;
-  } else if (key == 'H')
-    hex = true;
+    bool hex = false;
 
-  if (key == 'N' && havePrev) {
-    inWin.hide();
-  } else {
-    positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
+    if (key == KEY_ESCAPE) {
+      inWin.hide();
+      return;
+    } else if (key == 'H')
+      hex = true;
 
-    const int  maxLen = screenWidth-4;
-    Byte  buf[maxLen+1];
-    int   searchLen;
-
-    if (hex) {
-      getString(reinterpret_cast<char*>(buf), maxLen, hexSearchHistory, hexDigits, true, true);
-      searchLen = packHex(buf);
+    if ((key == 'N' || key == 'P') && havePrev) {
+      inWin.hide();
     } else {
-      getString(reinterpret_cast<char*>(buf), maxLen, textSearchHistory);
+      positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
 
-      searchLen = strlen(reinterpret_cast<char*>(buf));
-      if (displayTable == ebcdicDisplayTable) {
-        for (int i = 0; i < searchLen; ++i)
-          buf[i] = ascii2ebcdicTable[buf[i]];
-      } // end if in EBCDIC mode
-    } // end else text search
+      const int maxLen = screenWidth-4;
+      Byte buf[maxLen+1];
+      int searchLen;
 
-    if (!searchLen) return;
+      if (hex) {
+        getString(reinterpret_cast<char*>(buf), maxLen, hexSearchHistory, hexDigits, true, true);
+        searchLen = packHex(buf);
+      } else {
+        getString(reinterpret_cast<char*>(buf), maxLen, textSearchHistory);
 
-    lastSearch.assign(reinterpret_cast<char*>(buf), searchLen);
-  } // end else need to read search string
+        searchLen = strlen(reinterpret_cast<char*>(buf));
+        if (displayTable == ebcdicDisplayTable) {
+          for (int i = 0; i < searchLen; ++i)
+            buf[i] = ascii2ebcdicTable[buf[i]];
+        } // end if in EBCDIC mode
+      } // end else text search
+
+      if (!searchLen) return;
+
+      lastSearch.assign(reinterpret_cast<char*>(buf), searchLen);
+    } // end else need to read search string
+  } // end direct N or P
 
   bool problem = false;
-  const Byte *const  searchPattern =
-    reinterpret_cast<const Byte*>(lastSearch.c_str());
+  const Byte *const searchPattern = reinterpret_cast<const Byte*>(lastSearch.c_str());
 
-  if ((cmd & cmgGotoTop) &&
-      !file1.moveTo(searchPattern, lastSearch.length()))
-    problem = true;
-  if ((cmd & cmgGotoBottom) &&
-      !file2.moveTo(searchPattern, lastSearch.length()))
-    problem = true;
-
+  if (cmd & cmfFindPrev || key == 'P') {
+    if ((cmd & cmgGotoTop) && !file1.moveToBack(searchPattern, lastSearch.length()))
+      problem = true;
+    if ((cmd & cmgGotoBottom) && !file2.moveToBack(searchPattern, lastSearch.length()))
+      problem = true;
+  }
+  else {
+    if ((cmd & cmgGotoTop) && !file1.moveTo(searchPattern, lastSearch.length()))
+      problem = true;
+    if ((cmd & cmgGotoBottom) && !file2.moveTo(searchPattern, lastSearch.length()))
+      problem = true;
+  }
   if (problem) beep();
 } // end searchFiles
 
@@ -1632,7 +1725,7 @@ void handleCmd(Command cmd)
   } // end if move
   else if ((cmd & cmgGotoMask) == cmgGoto)
     gotoPosition(cmd);
-  else if ((cmd & cmgGotoMask) == cmFind)
+  else if (cmd & cmfFind)
     searchFiles(cmd);
   else if (cmd == cmNextDiff) {
     if (lockState) {
