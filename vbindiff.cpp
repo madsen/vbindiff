@@ -719,73 +719,33 @@ void FileDisplay::moveTo(FPos newOffset)
 
 bool FileDisplay::moveTo(const Byte* searchFor, int searchLen)
 {
-  if (!fileName[0]) return true; // No file, pretend success
+  if (! fileName[0]) return true; // No file, pretend success
 
-  // Using algorithm based on QuickSearch:
-  //   http://www-igm.univ-mlv.fr/~lecroq/string/node19.htm
+  const int blockSize = 1024 * 1024;
 
-  // Compute offset table:
-  int i;
-  int moveOver[256];
+  Byte *const searchBuf = new Byte[blockSize + searchLen];
 
-  for (i = 0; i < 256; ++i)
-    moveOver[i] = searchLen + 1;
-  for (i = 0; i < searchLen; ++i)
-    moveOver[searchFor[i]] = searchLen - i;
-
-  // Prepare the search buffer:
-
-  const int
-    blockSize  = 8 * 1024,
-    moveLength = searchLen,
-    restartAt  = blockSize - moveLength,
-    fullStop   = blockSize * 2 - moveLength;
-
-  Byte *const  searchBuf = new Byte[2 * blockSize];
-
-  Byte *const  copyTo         = searchBuf + restartAt;
-  const Byte *const copyFrom  = searchBuf + fullStop;
-
-  char *const  readAt = reinterpret_cast<char*>(searchBuf) + blockSize;
-
-  FPos  newPos = offset + 1;
-
+  FPos newPos = offset + 1;
   SeekFile(file, newPos);
-  Size bytesRead = ReadFile(file, searchBuf, blockSize * 2);
-  int stopAt = bytesRead - moveLength;
 
-  // Start the search:
-  i = 0;
-  for (;;) {
-    if (stopAt < fullStop) ++stopAt;
+  Size bytesRead = ReadFile(file, searchBuf + searchLen, blockSize);
 
-    while (i < stopAt) {
-      if (memcmp(searchFor, searchBuf + i, searchLen) == 0)
-        goto done;
-
-      i += moveOver[searchBuf[i + searchLen]]; // shift
-    } // end while more buffer to search
-
-    if (stopAt != fullStop) {
-      i = -1;
-      goto done;
-    } // Nothing more to read
-
+  for (int l = searchLen; bytesRead > 0; l = 0) { // adjust for first block
+    for (int i=0; i <= bytesRead - l; ++i) {
+      if (*searchFor == searchBuf[l + i]) {
+        if (! memcmp(searchFor, searchBuf + l + i, searchLen)) {
+          delete [] searchBuf;
+          moveTo(newPos + i - searchLen + l);
+          return true;
+        }
+      }
+    }
     newPos += blockSize;
-    i -= blockSize;
-    memcpy(copyTo, copyFrom, moveLength);
-    bytesRead = ReadFile(file, readAt, blockSize);
-    stopAt = bytesRead + blockSize - moveLength;
-  } // end forever
-
- done:
+    memcpy(searchBuf, searchBuf + blockSize, searchLen);
+    bytesRead = ReadFile(file, searchBuf + searchLen, blockSize);
+  }
   delete [] searchBuf;
-
-  if (i < 0) return false;      // No match
-
-  moveTo(newPos + i);
-
-  return true;
+  return false;
 } // end FileDisplay::moveTo
 
 //--------------------------------------------------------------------
