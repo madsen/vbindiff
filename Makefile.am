@@ -19,6 +19,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #--------------------------------------------------------------------
 
+AUTOMAKE_OPTIONS = subdir-objects
+
 bin_PROGRAMS = vbindiff
 dist_man_MANS = vbindiff.1
 vbindiff_SOURCES = vbindiff.cpp tables.h curses/ConWin.cpp curses/ConWin.hpp  \

@@ -1,4 +1,5 @@
 *.exe
+*.jpg
 *.ncb
 *.o
 *.obj
@@ -12,6 +13,7 @@
 *.user
 *.zip
 .deps
+.dirstamp
 Makefile
 Makefile.in
 NEWS
@@ -24,6 +26,7 @@ config.h
 config.log
 config.status
 configure
+compile
 depcomp
 install-sh
 missing
