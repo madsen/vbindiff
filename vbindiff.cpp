@@ -117,8 +117,8 @@ const Command  cmUseTop       = 10;
 const Command  cmUseBottom    = 11;
 const Command  cmToggleASCII  = 12;
 
-const short  leftMar  = 11;     // Starting column of hex display
-const short  leftMar2 = 61;     // Starting column of ASCII display
+const short  leftMar  = 13;     // Starting column of hex display
+const short  leftMar2 = 63;     // Starting column of ASCII display
 
 const int  lineWidth = 16;      // Number of bytes displayed per line
 
@@ -463,59 +463,49 @@ void FileDisplay::shutDown()
 
 void FileDisplay::display()
 {
-  if (!fileName[0]) return;
+  if (! fileName[0]) return;
 
-  FPos  lineOffset = offset;
+  short row, col, idx, lineLength;
+  FPos lineOffset = offset;
+  char bufHex[screenWidth + 1] = { 0 };
+  char bufAsc[lineWidth + lineWidth / 8] = { 0 };
 
-  short i,j,index,lineLength;
-  char  buf[lineWidth + lineWidth/8 + 1];
-  buf[sizeof(buf)-1] = '\0';
+  for (row=0; row < numLines; ++row) {
+    memset(bufHex, ' ', sizeof(bufHex) - 1);
+    memset(bufAsc, ' ', sizeof(bufAsc) - 1);
 
-  char  buf2[screenWidth+1];
-  buf2[screenWidth] = '\0';
+    char *pbufHex = bufHex, *pZero;
+    pbufHex += sprintf(pbufHex, "%01X%04X %04X: ",
+      Word(lineOffset >> 32), Word(lineOffset >> 16), Word(lineOffset & 0xFFFF));
 
-  memset(buf, ' ', sizeof(buf)-1);
+    lineLength = min(lineWidth, bufContents - row * lineWidth);
 
-  for (i = 0; i < numLines; i++) {
-//    cerr << i << '\n';
-    char*  str = buf2;
-    str +=
-      sprintf(str, "%04X %04X:",Word(lineOffset>>16),Word(lineOffset&0xFFFF));
+    for (col=0, idx = -1; col < lineLength; ++col) {
+      if (! (col % 8)) { *pbufHex++ = ' '; ++idx; }
 
-    lineLength  = min(lineWidth, bufContents - i*lineWidth);
+      pbufHex += sprintf(pbufHex, "%02X ", data->line[row][col]);
 
-    for (j = 0, index = -1; j < lineLength; j++) {
-      if (j % 8 == 0) {
-        *(str++) = ' ';
-        ++index;
-      }
-      str += sprintf(str, "%02X ", data->line[i][j]);
-
-      buf[index++] = displayTable[data->line[i][j]];
+      bufAsc[idx++] = displayTable[data->line[row][col]];
     }
-    if (index < 0) index = 0; // in case nothing was printed in this line
-    memset(buf + index, ' ', sizeof(buf) - index - 1);
-    memset(str, ' ', screenWidth - (str - buf2));
+    if ((pZero = (char*) memchr(bufHex, 0, sizeof(bufHex) - 1))) *pZero = ' ';
 
-    win.put(0,i+1, buf2);
-    win.put(leftMar2,i+1, buf);
+    win.put(0,        row + 1, bufHex);
+    win.put(leftMar2, row + 1, bufAsc);
 
     if (diffs)
-      for (j = 0; j < lineWidth; j++)
-        if (diffs->data->line[i][j]) {
-          win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileDiff,2);
-          win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileDiff,1);
+      for (col=0; col < lineWidth; ++col)
+        if (diffs->data->line[row][col]) {
+          win.putAttribs(leftMar  + col * 3 + (col > 7), row + 1, cFileDiff, 2);
+          win.putAttribs(leftMar2 + col     + (col > 7), row + 1, cFileDiff, 1);
         }
 
     if (search)
-      for (j = 0; j < lineWidth && search; j++, search--) {
-        win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileSearch,2);
-        win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileSearch,1);
+      for (col=0; col < lineWidth && search; ++col, --search) {
+        win.putAttribs(leftMar  + col * 3 + (col > 7), row + 1, cFileSearch, 2);
+        win.putAttribs(leftMar2 + col     + (col > 7), row + 1, cFileSearch, 1);
       }
     lineOffset += lineWidth;
-  } // end for i up to numLines
-
-  win.update();
+  } // end for row up to numLines
 } // end FileDisplay::display
 
 //--------------------------------------------------------------------
@@ -1603,17 +1593,15 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
-  positionInWin(cmd, inWidth+2, " Goto ");
+  positionInWin(cmd, inWidth + 4, " Goto ");
 
-  const int  maxLen = inWidth-2;
-  char  buf[maxLen+1];
+  const int maxLen = inWidth - 1;
+  char buf[maxLen + 1];
 
   getString(buf, maxLen, positionHistory, hexDigits, true);
+  if (! buf[0]) return;
 
-  if (!buf[0])
-    return;
-
-  FPos  pos = strtoul(buf, NULL, 16);
+  FPos pos = ConvString(buf);
 
   if (cmd & cmgGotoTop)
     file1.moveTo(pos);
