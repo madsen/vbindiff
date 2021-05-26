@@ -159,6 +159,7 @@ class FileDisplay
   File               file;
   char               fileName[maxPath];
   FPos               offset;
+  FPos               filesize;
   ConWindow          win;
   bool               writable;
   int                yPos;
@@ -703,6 +704,9 @@ void FileDisplay::moveTo(FPos newOffset)
   if (offset < 0)
     offset = 0;
 
+  if (offset > filesize)
+    offset = filesize;
+
   SeekFile(file, offset);
   bufContents = ReadFile(file, data->buffer, bufSize);
 } // end FileDisplay::moveTo
@@ -866,6 +870,8 @@ bool FileDisplay::setFile(const char* aFileName)
   if (file == InvalidFile)
     return false;
 
+  filesize = SeekFile(file, 0, SeekEnd);
+  SeekFile(file, 0);
   offset = 0;
   bufContents = ReadFile(file, data->buffer, bufSize);
 
