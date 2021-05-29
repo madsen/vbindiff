@@ -159,7 +159,6 @@ class FileDisplay
   File               file;
   char               fileName[maxPath];
   FPos               offset;
-  FPos               filesize;
   ConWindow          win;
   bool               writable;
   int                yPos;
@@ -167,8 +166,7 @@ class FileDisplay
  public:
   FileDisplay();
   ~FileDisplay();
-  void         init(int y, const Difference* aDiff=NULL,
-                    const char* aFileName=NULL);
+  void         init(int y, const Difference* aDiff);
   void         resize();
   void         shutDown();
   void         display();
@@ -180,6 +178,7 @@ class FileDisplay
   bool         moveToBack(const Byte* searchFor, int searchLen);
   void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
+  FPos         filesize;
  protected:
   void  setByte(short x, short y, Byte b);
 }; // end FileDisplay
@@ -411,21 +410,15 @@ FileDisplay::FileDisplay()
 // Input:
 //   y:          The vertical position of the display window
 //   aDiff:      The Difference object related to this buffer
-//   aFileName:  The name of the file to display
 
-void FileDisplay::init(int y, const Difference* aDiff,
-                       const char* aFileName)
+void FileDisplay::init(int y, const Difference* aDiff)
 {
   diffs = aDiff;
   yPos  = y;
 
-  win.init(0,y, screenWidth, (numLines + 1 + ((y==0) ? linesBetween : 0)),
-           cFileWin);
+  win.init(0, y, screenWidth, (numLines + 1 + (y ? 0 : linesBetween)), cFileWin);
 
   resize();
-
-  if (aFileName)
-    setFile(aFileName);
 } // end FileDisplay::init
 
 //--------------------------------------------------------------------
@@ -1912,6 +1905,11 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
       const char* errStr = ErrorMsg();
       errMsg << "Unable to open " << argv[2] << ": " << errStr;
     }
+    else if (!file1.filesize)
+      errMsg << "File is empty: " << argv[1];
+    else if (!singleFile && !file2.filesize)
+      errMsg << "File is empty: " << argv[2];
+
     string error(errMsg.str());
     if (error.length())
       exitMsg(1, error.c_str());
