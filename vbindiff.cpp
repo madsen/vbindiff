@@ -118,13 +118,26 @@ const Command  cmUseBottom    = 11;
 const Command  cmToggleASCII  = 12;
 
 const short  leftMar  = 13;     // Starting column of hex display
-const short  leftMar2 = 63;     // Starting column of ASCII display
 
-const int  lineWidth = 16;      // Number of bytes displayed per line
+#ifdef WIDTH24
+// display 3 x 8 Byte
+const int    lineWidth = 24;
+const int  screenWidth = 114;
+const short   leftMar2 = 88;
+#elif WIDTH32
+// display 4 x 8 Byte
+const int    lineWidth = 32;
+const int  screenWidth = 148;
+const short   leftMar2 = 113;
+#else
+// display 2 x 8 Byte
+const int    lineWidth = 16;    // Number of bytes displayed per line
+const int  screenWidth = 80;    // Key value - but _must_ be constant!
+const short   leftMar2 = 63;    // Starting column of ASCII display
+#endif
 
 const int  promptHeight = 4;    // Height of prompt window
 const int  inWidth = 10;        // Width of input window (excluding border)
-const int  screenWidth = 80;
 
 const int  maxPath = 260;
 
@@ -489,14 +502,14 @@ void FileDisplay::display()
     if (diffs)
       for (col=0; col < lineWidth; ++col)
         if (diffs->data->line[row][col]) {
-          win.putAttribs(leftMar  + col * 3 + (col > 7), row + 1, cFileDiff, 2);
-          win.putAttribs(leftMar2 + col     + (col > 7), row + 1, cFileDiff, 1);
+          win.putAttribs(leftMar  + col * 3 + (col / 8), row + 1, cFileDiff, 2);
+          win.putAttribs(leftMar2 + col     + (col / 8), row + 1, cFileDiff, 1);
         }
 
     if (search)
       for (col=0; col < lineWidth && search; ++col, --search) {
-        win.putAttribs(leftMar  + col * 3 + (col > 7), row + 1, cFileSearch, 2);
-        win.putAttribs(leftMar2 + col     + (col > 7), row + 1, cFileSearch, 1);
+        win.putAttribs(leftMar  + col * 3 + (col / 8), row + 1, cFileSearch, 2);
+        win.putAttribs(leftMar2 + col     + (col / 8), row + 1, cFileSearch, 1);
       }
     lineOffset += lineWidth;
   } // end for row up to numLines

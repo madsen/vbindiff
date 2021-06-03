@@ -19,6 +19,16 @@ This repository uses a submodule to pull in my [Free GetOpt](https://github.com/
 
 Now you're ready to use the normal `./configure && make` process on Unix, or open `win32/vbindiff.dsw` on Windows.
 
+Use `make` for standard 16 Byte per Line,
+
+`touch vbindiff.cpp && make CPPFLAGS+="-D WIDTH24"`
+
+for 24 Byte or
+
+`touch vbindiff.cpp && make CPPFLAGS+="-D WIDTH32"`
+
+for 32 Byte.
+
 To build the documentation, you'll also need [Perl](https://www.perl.org/), [Date::Format](https://metacpan.org/module/Date::Format), and [Template-Toolkit](https://metacpan.org/release/Template-Toolkit).  For Windows, I recommend [Strawberry Perl](http://strawberryperl.com/), which comes with the necessary modules.  On Unix, your distro may have packages, or you can install from [CPAN](https://metacpan.org/).  Package names for some distros are:
 
 * [Arch Linux](https://www.archlinux.org/): `perl perl-template-toolkit perl-timedate`
