@@ -95,6 +95,12 @@ FPos SeekFile(File file, FPos position, DWORD whence=SeekPos)
    return li.QuadPart;
 } // end SeekFile
 
+//--------------------------------------------------------------------
+inline FPos ConvString(char* buffer)
+{
+  return _strtoui64(buffer, NULL, 16);
+} // end ConvString
+
 #endif // INCLUDED_FILEIO_HPP
 
 // Local Variables:
