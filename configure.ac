@@ -39,7 +39,7 @@ AC_SEARCH_LIBS([new_panel], [panel], ,
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([errno.h fcntl.h limits.h panel.h stdlib.h string.h unistd.h])
+AC_CHECK_HEADERS([errno.h fcntl.h limits.h panel.h ncurses/panel.h stdlib.h string.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
