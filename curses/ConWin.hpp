@@ -23,7 +23,14 @@
 
 #define INCLUDED_CONWIN_HPP
 
+#include "config.h"
+#if defined(HAVE_PANEL_H)
 #include <panel.h>
+#elif defined(HAVE_NCURSES_PANEL_H)
+#include <ncurses/panel.h>
+#else
+#error "Couldn't find a panel.h header."
+#endif
 #undef border                 // It interferes with my member function
 
 #define KEY_ESCAPE 0x1B
