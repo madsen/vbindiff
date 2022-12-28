@@ -1659,7 +1659,10 @@ void searchFiles(Command cmd)
     } else {
       positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
 
-      const int maxLen = screenWidth-4;
+      int maxLen = screenWidth-4;
+      if (maxLen % 3) {
+        maxLen -= maxLen % 3;  // fix segfault with 24 byte
+      }
       Byte buf[maxLen+1];
       int searchLen;
 
