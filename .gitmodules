@@ -1,3 +1,4 @@
 [submodule "GetOpt"]
 	path = GetOpt
 	url = https://github.com/madsen/free-getopt.git
+	ignore = untracked

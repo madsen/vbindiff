@@ -104,6 +104,10 @@ const Command  cmgGotoBottom  = 0x02;
 const Command  cmgGotoBoth    = cmgGotoTop|cmgGotoBottom;
 const Command  cmgGotoMask    = ~cmgGotoBoth;
 
+const Command  cmfFind        = 0x40; // Commands 64-67
+const Command  cmfFindNext    = 0x10;
+const Command  cmfFindPrev    = 0x20;
+
 const Command  cmNothing      = 0;
 const Command  cmNextDiff     = 1;
 const Command  cmQuit         = 2;
@@ -112,16 +116,28 @@ const Command  cmEditBottom   = 9;
 const Command  cmUseTop       = 10;
 const Command  cmUseBottom    = 11;
 const Command  cmToggleASCII  = 12;
-const Command  cmFind         = 16; // Commands 16-19
 
-const short  leftMar  = 11;     // Starting column of hex display
-const short  leftMar2 = 61;     // Starting column of ASCII display
+const short  leftMar  = 13;     // Starting column of hex display
 
-const int  lineWidth = 16;      // Number of bytes displayed per line
+#ifdef WIDTH24
+// display 3 x 8 Byte
+const int    lineWidth = 24;
+const int  screenWidth = 114;
+const short   leftMar2 = 88;
+#elif WIDTH32
+// display 4 x 8 Byte
+const int    lineWidth = 32;
+const int  screenWidth = 148;
+const short   leftMar2 = 113;
+#else
+// display 2 x 8 Byte
+const int    lineWidth = 16;    // Number of bytes displayed per line
+const int  screenWidth = 80;    // Key value - but _must_ be constant!
+const short   leftMar2 = 63;    // Starting column of ASCII display
+#endif
 
 const int  promptHeight = 4;    // Height of prompt window
 const int  inWidth = 10;        // Width of input window (excluding border)
-const int  screenWidth = 80;
 
 const int  maxPath = 260;
 
@@ -159,11 +175,11 @@ class FileDisplay
   ConWindow          win;
   bool               writable;
   int                yPos;
+  int                search;
  public:
   FileDisplay();
   ~FileDisplay();
-  void         init(int y, const Difference* aDiff=NULL,
-                    const char* aFileName=NULL);
+  void         init(int y, const Difference* aDiff);
   void         resize();
   void         shutDown();
   void         display();
@@ -172,8 +188,10 @@ class FileDisplay
   void         move(int step)    { moveTo(offset + step); };
   void         moveTo(FPos newOffset);
   bool         moveTo(const Byte* searchFor, int searchLen);
+  bool         moveToBack(const Byte* searchFor, int searchLen);
   void         moveToEnd(FileDisplay* other);
   bool         setFile(const char* aFileName);
+  FPos         filesize;
  protected:
   void  setByte(short x, short y, Byte b);
 }; // end FileDisplay
@@ -377,6 +395,8 @@ void Difference::resize()
 //     The handle of the window used for display
 //   yPos:
 //     The vertical position of the display window
+//   search:
+//     The number of bytes to highlight
 //   buffer/line:
 //     The currently displayed portion of the file
 //
@@ -389,7 +409,8 @@ FileDisplay::FileDisplay()
   diffs(NULL),
   offset(0),
   writable(false),
-  yPos(0)
+  yPos(0),
+  search(0)
 {
   fileName[0] = '\0';
 } // end FileDisplay::FileDisplay
@@ -402,21 +423,15 @@ FileDisplay::FileDisplay()
 // Input:
 //   y:          The vertical position of the display window
 //   aDiff:      The Difference object related to this buffer
-//   aFileName:  The name of the file to display
 
-void FileDisplay::init(int y, const Difference* aDiff,
-                       const char* aFileName)
+void FileDisplay::init(int y, const Difference* aDiff)
 {
   diffs = aDiff;
   yPos  = y;
 
-  win.init(0,y, screenWidth, (numLines + 1 + ((y==0) ? linesBetween : 0)),
-           cFileWin);
+  win.init(0, y, screenWidth, (numLines + 1 + (y ? 0 : linesBetween)), cFileWin);
 
   resize();
-
-  if (aFileName)
-    setFile(aFileName);
 } // end FileDisplay::init
 
 //--------------------------------------------------------------------
@@ -455,53 +470,49 @@ void FileDisplay::shutDown()
 
 void FileDisplay::display()
 {
-  if (!fileName[0]) return;
+  if (! fileName[0]) return;
 
-  FPos  lineOffset = offset;
+  short row, col, idx, lineLength;
+  FPos lineOffset = offset;
+  char bufHex[screenWidth + 1] = { 0 };
+  char bufAsc[lineWidth + lineWidth / 8] = { 0 };
 
-  short i,j,index,lineLength;
-  char  buf[lineWidth + lineWidth/8 + 1];
-  buf[sizeof(buf)-1] = '\0';
+  for (row=0; row < numLines; ++row) {
+    memset(bufHex, ' ', sizeof(bufHex) - 1);
+    memset(bufAsc, ' ', sizeof(bufAsc) - 1);
 
-  char  buf2[screenWidth+1];
-  buf2[screenWidth] = '\0';
+    char *pbufHex = bufHex, *pZero;
+    pbufHex += sprintf(pbufHex, "%01X%04X %04X: ",
+      Word(lineOffset >> 32), Word(lineOffset >> 16), Word(lineOffset & 0xFFFF));
 
-  memset(buf, ' ', sizeof(buf)-1);
+    lineLength = min(lineWidth, bufContents - row * lineWidth);
 
-  for (i = 0; i < numLines; i++) {
-//    cerr << i << '\n';
-    char*  str = buf2;
-    str +=
-      sprintf(str, "%04X %04X:",Word(lineOffset>>16),Word(lineOffset&0xFFFF));
+    for (col=0, idx = -1; col < lineLength; ++col) {
+      if (! (col % 8)) { *pbufHex++ = ' '; ++idx; }
 
-    lineLength  = min(lineWidth, bufContents - i*lineWidth);
+      pbufHex += sprintf(pbufHex, "%02X ", data->line[row][col]);
 
-    for (j = 0, index = -1; j < lineLength; j++) {
-      if (j % 8 == 0) {
-        *(str++) = ' ';
-        ++index;
-      }
-      str += sprintf(str, "%02X ", data->line[i][j]);
-
-      buf[index++] = displayTable[data->line[i][j]];
+      bufAsc[idx++] = displayTable[data->line[row][col]];
     }
-    if (index < 0) index = 0; // in case nothing was printed in this line
-    memset(buf + index, ' ', sizeof(buf) - index - 1);
-    memset(str, ' ', screenWidth - (str - buf2));
+    if ((pZero = (char*) memchr(bufHex, 0, sizeof(bufHex) - 1))) *pZero = ' ';
 
-    win.put(0,i+1, buf2);
-    win.put(leftMar2,i+1, buf);
+    win.put(0,        row + 1, bufHex);
+    win.put(leftMar2, row + 1, bufAsc);
 
     if (diffs)
-      for (j = 0; j < lineWidth; j++)
-        if (diffs->data->line[i][j]) {
-          win.putAttribs(j*3 + leftMar  + (j>7),i+1, cFileDiff,2);
-          win.putAttribs(j   + leftMar2 + (j>7),i+1, cFileDiff,1);
+      for (col=0; col < lineWidth; ++col)
+        if (diffs->data->line[row][col]) {
+          win.putAttribs(leftMar  + col * 3 + (col / 8), row + 1, cFileDiff, 2);
+          win.putAttribs(leftMar2 + col     + (col / 8), row + 1, cFileDiff, 1);
         }
-    lineOffset += lineWidth;
-  } // end for i up to numLines
 
-  win.update();
+    if (search)
+      for (col=0; col < lineWidth && search; ++col, --search) {
+        win.putAttribs(leftMar  + col * 3 + (col / 8), row + 1, cFileSearch, 2);
+        win.putAttribs(leftMar2 + col     + (col / 8), row + 1, cFileSearch, 1);
+      }
+    lineOffset += lineWidth;
+  } // end for row up to numLines
 } // end FileDisplay::display
 
 //--------------------------------------------------------------------
@@ -699,6 +710,9 @@ void FileDisplay::moveTo(FPos newOffset)
   if (offset < 0)
     offset = 0;
 
+  if (offset > filesize)
+    offset = filesize;
+
   SeekFile(file, offset);
   bufContents = ReadFile(file, data->buffer, bufSize);
 } // end FileDisplay::moveTo
@@ -719,74 +733,91 @@ void FileDisplay::moveTo(FPos newOffset)
 
 bool FileDisplay::moveTo(const Byte* searchFor, int searchLen)
 {
-  if (!fileName[0]) return true; // No file, pretend success
+  if (! fileName[0]) return true; // No file, pretend success
 
-  // Using algorithm based on QuickSearch:
-  //   http://www-igm.univ-mlv.fr/~lecroq/string/node19.htm
+  const int blockSize = 1024 * 1024;
 
-  // Compute offset table:
-  int i;
-  int moveOver[256];
+  Byte *const searchBuf = new Byte[blockSize + searchLen];
 
-  for (i = 0; i < 256; ++i)
-    moveOver[i] = searchLen + 1;
-  for (i = 0; i < searchLen; ++i)
-    moveOver[searchFor[i]] = searchLen - i;
-
-  // Prepare the search buffer:
-
-  const int
-    blockSize  = 8 * 1024,
-    moveLength = searchLen,
-    restartAt  = blockSize - moveLength,
-    fullStop   = blockSize * 2 - moveLength;
-
-  Byte *const  searchBuf = new Byte[2 * blockSize];
-
-  Byte *const  copyTo         = searchBuf + restartAt;
-  const Byte *const copyFrom  = searchBuf + fullStop;
-
-  char *const  readAt = reinterpret_cast<char*>(searchBuf) + blockSize;
-
-  FPos  newPos = offset + 1;
-
+  FPos newPos = offset + 1;
   SeekFile(file, newPos);
-  Size bytesRead = ReadFile(file, searchBuf, blockSize * 2);
-  int stopAt = bytesRead - moveLength;
 
-  // Start the search:
-  i = 0;
-  for (;;) {
-    if (stopAt < fullStop) ++stopAt;
+  Size bytesRead = ReadFile(file, searchBuf + searchLen, blockSize);
 
-    while (i < stopAt) {
-      if (memcmp(searchFor, searchBuf + i, searchLen) == 0)
-        goto done;
-
-      i += moveOver[searchBuf[i + searchLen]]; // shift
-    } // end while more buffer to search
-
-    if (stopAt != fullStop) {
-      i = -1;
-      goto done;
-    } // Nothing more to read
-
+  for (int l = searchLen; bytesRead > 0; l = 0) { // adjust for first block
+    for (int i=0; i <= bytesRead - l; ++i) {
+      if (*searchFor == searchBuf[l + i]) {
+        if (! memcmp(searchFor, searchBuf + l + i, searchLen)) {
+          delete [] searchBuf;
+          moveTo(newPos + i - searchLen + l);
+          search = searchLen;
+          return true;
+        }
+      }
+    }
     newPos += blockSize;
-    i -= blockSize;
-    memcpy(copyTo, copyFrom, moveLength);
-    bytesRead = ReadFile(file, readAt, blockSize);
-    stopAt = bytesRead + blockSize - moveLength;
-  } // end forever
-
- done:
+    memcpy(searchBuf, searchBuf + blockSize, searchLen);
+    bytesRead = ReadFile(file, searchBuf + searchLen, blockSize);
+  }
   delete [] searchBuf;
-
-  if (i < 0) return false;      // No match
-
-  moveTo(newPos + i);
-
-  return true;
+  return false;
 } // end FileDisplay::moveTo
+
+//--------------------------------------------------------------------
+// Change the file position by searching backward:
+//
+// Changes the file offset and updates the buffer.
+// Does not update the display.
+//
+// Input:
+//   searchFor:  The bytes to search for
+//   searchLen:  The number of bytes in searchFor
+//
+// Returns:
+//   true:   The search was successful
+//   false:  Search unsuccessful, file not moved
+
+bool FileDisplay::moveToBack(const Byte* searchFor, int searchLen)
+{
+  if (! fileName[0] || offset == 0)
+    return true;
+
+  const int blockSize = 8 * 1024 * 1024;
+  Byte *const searchBuf = new Byte[blockSize + searchLen];
+  memcpy(searchBuf + blockSize, data->buffer, searchLen);
+
+  FPos newPos = offset - blockSize;
+  int diff = 0;
+
+  for (;;) {
+    if (newPos < 0) {
+      diff = newPos;
+      newPos = 0;
+    }
+    SeekFile(file, newPos);
+    if ((ReadFile(file, searchBuf, blockSize)) <= 0) break;
+
+    if (diff)
+      memmove(searchBuf + (blockSize + diff), searchBuf + blockSize, searchLen);
+
+    for (int i = blockSize - 1 + diff; i >= 0; --i) {
+      if (*searchFor == searchBuf[i]) {
+        if (! memcmp(searchFor, searchBuf + i, searchLen)) {
+          delete [] searchBuf;
+          moveTo(newPos + i);
+          search = searchLen;
+          return true;
+        }
+      }
+    }
+    if (! newPos) break;
+
+    memcpy(searchBuf + blockSize, searchBuf, searchLen);
+    newPos -= blockSize;
+  }
+  delete [] searchBuf;
+  return false;
+} // end FileDisplay::moveToBack
 
 //--------------------------------------------------------------------
 // Move to the end of the file:
@@ -845,6 +876,8 @@ bool FileDisplay::setFile(const char* aFileName)
   if (file == InvalidFile)
     return false;
 
+  filesize = SeekFile(file, 0, SeekEnd);
+  SeekFile(file, 0);
   offset = 0;
   bufContents = ReadFile(file, data->buffer, bufSize);
 
@@ -895,8 +928,8 @@ void displayCharacterSet()
 {
   const bool isASCII = (displayTable == asciiDisplayTable);
 
-  promptWin.putAttribs(3,2, (isASCII ? cCurrentMode : cBackground), 5);
-  promptWin.putAttribs(9,2, (isASCII ? cBackground : cCurrentMode), 6);
+  promptWin.putAttribs(4,2, (isASCII ? cCurrentMode : cBackground), 5);
+  promptWin.putAttribs(10,2, (isASCII ? cBackground : cCurrentMode), 6);
 
   promptWin.update();
 } // end displayCharacterSet
@@ -907,10 +940,10 @@ void displayLockState()
 #ifndef WIN32_CONSOLE     // The Win32 version uses Ctrl & Alt instead
   if (singleFile) return;
 
-  promptWin.putAttribs(63,1,
+  promptWin.putAttribs(67,1,
                        ((lockState == lockBottom) ? cCurrentMode : cBackground),
                        8);
-  promptWin.putAttribs(63,2,
+  promptWin.putAttribs(67,2,
                        ((lockState == lockTop)    ? cCurrentMode : cBackground),
                        11);
 #endif
@@ -1321,18 +1354,14 @@ void showPrompt()
   promptWin.border();
 
 #ifdef WIN32_CONSOLE
-  promptWin.put(1,1, "Arrow keys move  F find      "
-                "RET next difference  ESC quit  ALT  freeze top");
-  promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
-                "G goto position      Q quit  CTRL freeze bottom");
+  promptWin.put(1,1, "Arrow keys move  F find  N next  RET next difference  ESC quit  ALT  top");
+  promptWin.put(1,2, "C  ASCII/EBCDIC  E edit  P prev  G   goto position    Q   quit  CTRL bottom");
   const short
     topBotLength = 4,
-    topLength    = 15;
+    topLength    = 8;
 #else // curses
-  promptWin.put(1,1, "Arrow keys move  F find      "
-                "RET next difference  ESC quit  T move top");
-  promptWin.put(1,2, "C ASCII/EBCDIC   E edit file   "
-                "G goto position      Q quit  B move bottom");
+  promptWin.put(1,1, "Arrow keys move  F find  N next  RET next difference  ESC quit  T move top");
+  promptWin.put(1,2, "C  ASCII/EBCDIC  E edit  P prev  G   goto position    Q   quit  B move bottom");
   const short
     topBotLength = 1,
     topLength    = 10;
@@ -1340,19 +1369,21 @@ void showPrompt()
 
   promptWin.putAttribs( 1,1, cPromptKey, 10);
   promptWin.putAttribs(18,1, cPromptKey, 1);
-  promptWin.putAttribs(30,1, cPromptKey, 3);
-  promptWin.putAttribs(51,1, cPromptKey, 3);
+  promptWin.putAttribs(26,1, cPromptKey, 1);
+  promptWin.putAttribs(34,1, cPromptKey, 3);
+  promptWin.putAttribs(55,1, cPromptKey, 3);
   promptWin.putAttribs( 1,2, cPromptKey, 1);
   promptWin.putAttribs(18,2, cPromptKey, 1);
-  promptWin.putAttribs(32,2, cPromptKey, 1);
-  promptWin.putAttribs(53,2, cPromptKey, 1);
+  promptWin.putAttribs(26,2, cPromptKey, 1);
+  promptWin.putAttribs(34,2, cPromptKey, 1);
+  promptWin.putAttribs(55,2, cPromptKey, 1);
   if (singleFile) {
     // Erase "move top" & "move bottom":
-    promptWin.putChar(61,1, ' ', topLength);
-    promptWin.putChar(61,2, ' ', topLength + 3);
+    promptWin.putChar(65,1, ' ', topLength);
+    promptWin.putChar(65,2, ' ', topLength + 3);
   } else {
-    promptWin.putAttribs(61,1, cPromptKey, topBotLength);
-    promptWin.putAttribs(61,2, cPromptKey, topBotLength);
+    promptWin.putAttribs(65,1, cPromptKey, topBotLength);
+    promptWin.putAttribs(65,2, cPromptKey, topBotLength);
   }
   displayLockState();
   displayCharacterSet();        // Calls promptWin.update()
@@ -1413,7 +1444,6 @@ Command getCommand()
 
     switch (safeUC(e.uChar.AsciiChar)) {
      case KEY_RETURN:           // Enter
-     case ' ':                  // Space
       cmd = cmNextDiff;
       break;
 
@@ -1427,13 +1457,27 @@ Command getCommand()
 
      case 'F':
       if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
-        cmd = cmFind|cmgGotoBottom;
+        cmd = cmfFind|cmgGotoBottom;
       else
-        cmd = cmFind|cmgGotoBoth;
+        cmd = cmfFind|cmgGotoBoth;
+      break;
+
+     case 'N':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmfFind|cmgGotoBottom|cmfFindNext;
+      else
+        cmd = cmfFind|cmgGotoBoth|cmfFindNext;
+      break;
+
+     case 'P':
+      if (e.dwControlKeyState & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED))
+        cmd = cmfFind|cmgGotoBottom|cmfFindPrev;
+      else
+        cmd = cmfFind|cmgGotoBoth|cmfFindPrev;
       break;
 
      case 0x06:               // Ctrl+F
-      cmd = cmFind|cmgGotoTop;
+      cmd = cmfFind|cmgGotoTop;
       break;
 
      case 'G':
@@ -1459,10 +1503,12 @@ Command getCommand()
       switch (e.wVirtualKeyCode) {
        case VK_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
        case VK_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
+       case ' ':
        case VK_NEXT:   cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
        case VK_END:    cmd = cmmMove|cmmMoveAll|cmmMoveForward;   break;
        case VK_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
        case VK_UP:     cmd = cmmMove|cmmMoveLine;                 break;
+       case VK_BACK:
        case VK_PRIOR:  cmd = cmmMove|cmmMovePage;                 break;
        case VK_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
       } // end switch virtual key code
@@ -1490,7 +1536,6 @@ Command getCommand()
 
     switch (safeUC(e)) {
      case KEY_RETURN:           // Enter
-     case ' ':                  // Space
       cmd = cmNextDiff;
       break;
 
@@ -1502,9 +1547,13 @@ Command getCommand()
       break;
 
      case 'F':
-      cmd = cmFind;
-      if (lockState != lockTop)    cmd |= cmgGotoTop;
-      if (lockState != lockBottom) cmd |= cmgGotoBottom;
+      cmd = cmfFind;
+      break;
+     case 'N':
+      cmd = cmfFind | cmfFindNext;
+      break;
+     case 'P':
+      cmd = cmfFind | cmfFindPrev;
       break;
 
      case 'G':
@@ -1526,14 +1575,21 @@ Command getCommand()
 
      case KEY_DOWN:   cmd = cmmMove|cmmMoveLine|cmmMoveForward;  break;
      case KEY_RIGHT:  cmd = cmmMove|cmmMoveByte|cmmMoveForward;  break;
+     case ' ':
      case KEY_NPAGE:  cmd = cmmMove|cmmMovePage|cmmMoveForward;  break;
      case KEY_END:    cmd = cmmMove|cmmMoveAll|cmmMoveForward;   break;
      case KEY_LEFT:   cmd = cmmMove|cmmMoveByte;                 break;
      case KEY_UP:     cmd = cmmMove|cmmMoveLine;                 break;
+     case KEY_BACKSPACE:
      case KEY_PPAGE:  cmd = cmmMove|cmmMovePage;                 break;
      case KEY_HOME:   cmd = cmmMove|cmmMoveAll;                  break;
     } // end switch ASCII code
   } // end while no command
+
+  if (cmd & cmfFind) {
+    if (lockState != lockTop)    cmd |= cmgGotoTop;
+    if (lockState != lockBottom) cmd |= cmgGotoBottom;
+  } // end if find command
 
   if (cmd & cmmMove) {
     if (lockState != lockTop)    cmd |= cmmMoveTop;
@@ -1549,17 +1605,15 @@ Command getCommand()
 
 void gotoPosition(Command cmd)
 {
-  positionInWin(cmd, inWidth+2, " Goto ");
+  positionInWin(cmd, inWidth + 4, " Goto ");
 
-  const int  maxLen = inWidth-2;
-  char  buf[maxLen+1];
+  const int maxLen = inWidth - 1;
+  char buf[maxLen + 1];
 
   getString(buf, maxLen, positionHistory, hexDigits, true);
+  if (! buf[0]) return;
 
-  if (!buf[0])
-    return;
-
-  FPos  pos = strtoul(buf, NULL, 16);
+  FPos pos = ConvString(buf);
 
   if (cmd & cmgGotoTop)
     file1.moveTo(pos);
@@ -1573,65 +1627,79 @@ void gotoPosition(Command cmd)
 void searchFiles(Command cmd)
 {
   const bool havePrev = !lastSearch.empty();
+  int key = 0;
 
-  positionInWin(cmd, (havePrev ? 47 : 32), " Find ");
+  if (! ((cmd & cmfFindNext || cmd & cmfFindPrev) && havePrev)) {
+    positionInWin(cmd, (havePrev ? 36 : 18), " Find ");
 
-  inWin.put(2, 1,"H Hex search   T Text search");
-  inWin.putAttribs( 2,1, cPromptKey, 1);
-  inWin.putAttribs(17,1, cPromptKey, 1);
-  if (havePrev) {
-    inWin.put(33, 1,"N Next match");
-    inWin.putAttribs(33,1, cPromptKey, 1);
-  }
-  inWin.update();
-  int key = safeUC(inWin.readKey());
+    inWin.put(2, 1, "H Hex");
+    inWin.put(10, 1, "T Text");
+    inWin.putAttribs(2, 1, cPromptKey, 1);
+    inWin.putAttribs(10, 1, cPromptKey, 1);
 
-  bool hex = false;
+    if (havePrev) {
+      inWin.put(19, 1, "N Next");
+      inWin.put(28, 1, "P Prev");
+      inWin.putAttribs(19, 1, cPromptKey, 1);
+      inWin.putAttribs(28, 1, cPromptKey, 1);
+    }
+    inWin.update();
+    key = safeUC(inWin.readKey());
 
-  if (key == KEY_ESCAPE) {
-    inWin.hide();
-    return;
-  } else if (key == 'H')
-    hex = true;
+    bool hex = false;
 
-  if (key == 'N' && havePrev) {
-    inWin.hide();
-  } else {
-    positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
+    if (key == KEY_ESCAPE) {
+      inWin.hide();
+      return;
+    } else if (key == 'H')
+      hex = true;
 
-    const int  maxLen = screenWidth-4;
-    Byte  buf[maxLen+1];
-    int   searchLen;
-
-    if (hex) {
-      getString(reinterpret_cast<char*>(buf), maxLen, hexSearchHistory, hexDigits, true, true);
-      searchLen = packHex(buf);
+    if ((key == 'N' || key == 'P') && havePrev) {
+      inWin.hide();
     } else {
-      getString(reinterpret_cast<char*>(buf), maxLen, textSearchHistory);
+      positionInWin(cmd, screenWidth, (hex ? " Find Hex Bytes" : " Find Text "));
 
-      searchLen = strlen(reinterpret_cast<char*>(buf));
-      if (displayTable == ebcdicDisplayTable) {
-        for (int i = 0; i < searchLen; ++i)
-          buf[i] = ascii2ebcdicTable[buf[i]];
-      } // end if in EBCDIC mode
-    } // end else text search
+      int maxLen = screenWidth-4;
+      if (maxLen % 3) {
+        maxLen -= maxLen % 3;  // fix segfault with 24 byte
+      }
+      Byte buf[maxLen+1];
+      int searchLen;
 
-    if (!searchLen) return;
+      if (hex) {
+        getString(reinterpret_cast<char*>(buf), maxLen, hexSearchHistory, hexDigits, true, true);
+        searchLen = packHex(buf);
+      } else {
+        getString(reinterpret_cast<char*>(buf), maxLen, textSearchHistory);
 
-    lastSearch.assign(reinterpret_cast<char*>(buf), searchLen);
-  } // end else need to read search string
+        searchLen = strlen(reinterpret_cast<char*>(buf));
+        if (displayTable == ebcdicDisplayTable) {
+          for (int i = 0; i < searchLen; ++i)
+            buf[i] = ascii2ebcdicTable[buf[i]];
+        } // end if in EBCDIC mode
+      } // end else text search
+
+      if (!searchLen) return;
+
+      lastSearch.assign(reinterpret_cast<char*>(buf), searchLen);
+    } // end else need to read search string
+  } // end direct N or P
 
   bool problem = false;
-  const Byte *const  searchPattern =
-    reinterpret_cast<const Byte*>(lastSearch.c_str());
+  const Byte *const searchPattern = reinterpret_cast<const Byte*>(lastSearch.c_str());
 
-  if ((cmd & cmgGotoTop) &&
-      !file1.moveTo(searchPattern, lastSearch.length()))
-    problem = true;
-  if ((cmd & cmgGotoBottom) &&
-      !file2.moveTo(searchPattern, lastSearch.length()))
-    problem = true;
-
+  if (cmd & cmfFindPrev || key == 'P') {
+    if ((cmd & cmgGotoTop) && !file1.moveToBack(searchPattern, lastSearch.length()))
+      problem = true;
+    if ((cmd & cmgGotoBottom) && !file2.moveToBack(searchPattern, lastSearch.length()))
+      problem = true;
+  }
+  else {
+    if ((cmd & cmgGotoTop) && !file1.moveTo(searchPattern, lastSearch.length()))
+      problem = true;
+    if ((cmd & cmgGotoBottom) && !file2.moveTo(searchPattern, lastSearch.length()))
+      problem = true;
+  }
   if (problem) beep();
 } // end searchFiles
 
@@ -1672,7 +1740,7 @@ void handleCmd(Command cmd)
   } // end if move
   else if ((cmd & cmgGotoMask) == cmgGoto)
     gotoPosition(cmd);
-  else if ((cmd & cmgGotoMask) == cmFind)
+  else if (cmd & cmfFind)
     searchFiles(cmd);
   else if (cmd == cmNextDiff) {
     if (lockState) {
@@ -1853,6 +1921,11 @@ VBinDiff comes with ABSOLUTELY NO WARRANTY; for details type `vbindiff -L'.\n";
       const char* errStr = ErrorMsg();
       errMsg << "Unable to open " << argv[2] << ": " << errStr;
     }
+    else if (!file1.filesize)
+      errMsg << "File is empty: " << argv[1];
+    else if (!singleFile && !file2.filesize)
+      errMsg << "File is empty: " << argv[2];
+
     string error(errMsg.str());
     if (error.length())
       exitMsg(1, error.c_str());

@@ -88,6 +88,12 @@ inline FPos SeekFile(File file, FPos position, int whence=SeekPos)
   return lseek(file, position, whence);
 } // end SeekFile
 
+//--------------------------------------------------------------------
+inline FPos ConvString(char* buffer)
+{
+  return strtoull(buffer, NULL, 16);
+} // end ConvString
+
 #endif // INCLUDED_FILEIO_HPP
 
 // Local Variables:
